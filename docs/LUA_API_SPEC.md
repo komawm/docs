@@ -76,17 +76,22 @@ koma.monitor({
 
 Custom timings for specialized displays or KVMs can pass a `modeline` table (`clock_mhz`, `hdisplay`, `hsync_start`, `hsync_end`, `htotal`, `vdisplay`, `vsync_start`, `vsync_end`, `vtotal`, `hsync_polarity`, `vsync_polarity`). Setting `off = true` disables the output via DPMS/atomic modeset.
 
-### 2.2 Symmetrical Dual-Mode Workspaces (`koma.workspace`)
+### 2.2 Symmetrical Dual-Mode Workspaces & Global Layout (`koma.workspace`, `koma.layout`)
 
-Unlike traditional compositors where offscreen outputs are ad-hoc fake monitors, `koma.workspace(spec)` declares persistent logical workspaces decoupled from physical connectors:
+Unlike traditional compositors where offscreen outputs are ad-hoc fake monitors, `koma.workspace(spec)` declares persistent logical workspaces decoupled from physical connectors.
+
+The global default layout mode for headed workspaces is `"dwindle"` (`LayoutMode::Dwindle`). Users can override the default layout globally via `koma.layout("dwindle" | "scrolling" | "deck" | "bsp")` or per-workspace via `koma.workspace({ layout = "dwindle" | "scrolling" | "deck" | "bsp", gaps = { inner = 8, outer = 12 } })`, and tune layout-specific parameters via `koma.dwindle({...})` and `koma.scrolling({...})` (see Section 7).
 
 ```
--- Human daily-driver workspace bound to physical output
+-- Optional global headed-workspace layout override (defaults to "dwindle" / LayoutMode::Dwindle)
+koma.layout("dwindle") -- "dwindle" | "scrolling" | "deck" | "bsp"
+
+-- Human daily-driver workspace bound to physical output (with per-workspace layout & gap overrides)
 koma.workspace({
     name = "1:code",
     presentation = "headed",
     preferred_output = "eDP-1",
-    layout = "scrolling", -- "scrolling" | "bsp" | "deck"
+    layout = "scrolling", -- "dwindle" | "scrolling" | "deck" | "bsp"
     gaps = { inner = 8, outer = 12 },
 })
 
@@ -108,9 +113,14 @@ koma.workspace({
 
 ### 2.3 Input Devices & Visual Appearance (`koma.input`, `koma.device`, `koma.appearance`)
 
+By default (`inherit_default_binds = true` on `koma.input({...})`), `Koma` loads the built-in Hyprland-compatible default keybinding table (`Mod + Return`, `Mod + Q`, `Mod + M`, `Mod + V`, `Mod + F`, `Mod + P`, `Mod + E`, `Mod + S`, `Mod + H/J/K/L`, `Mod + Shift + H/J/K/L`, `Mod + 1..9`, `Mod + Shift + 1..9`, `Mod + MouseLeft/Right`, `Mod + WheelScrollDown/Up`). User `koma.bind(...)` calls merge into this table—overriding matching chords in-place without wiping other default keybinds—and `koma.unbind(chord)` removes specific default chords selectively. Setting `inherit_default_binds = false` starts from an empty user keybinding table (while preserving Ring 0 rescue chords `Mod + G` and `Ctrl + Alt + F1..F12`).
+
+`koma.appearance({...})` exposes the complete typed visual configuration schema with sensible built-in defaults (including both the nested `dim = { ... }` table and top-level `brightness`, `dim_inactive`, and `dim_strength` convenience fields):
+
 ```
 koma.input({
-    mod_key = "Super",        -- "Super" | "Alt" (auto-switches to "Alt" when running nested under winit)
+    mod_key = "Super",              -- "Super" | "Alt" (auto-switches to "Alt" when running nested under winit)
+    inherit_default_binds = true,   -- Inherits built-in Hyprland-compatible default binds; koma.bind(...) overrides in-place
     keyboard = {
         layout = "us",
         variant = "",
@@ -136,6 +146,9 @@ koma.input({
     },
 })
 
+-- Selectively remove a single inherited default keybind without clearing others
+koma.unbind("Mod + M")
+
 -- Per-hardware libinput override
 koma.device({
     name = "wacom-one-by-wacom-s-pen",
@@ -145,17 +158,59 @@ koma.device({
 koma.appearance({
     border = {
         enabled = true,
-        width = 2,
-        active_color = { gradient = { "#58a6ff", "#7ee787" }, angle = 45 },
+        width = 2.0,
+        active_color = "#58a6ff",
         inactive_color = "#30363d",
-        urgent_color = "#f85149",
-        agent_leased_color = "#d2a8ff", -- Visual badge when a workspace holds AgentExclusive lease
+        agent_leased_color = "#d2a8ff",   -- Visual badge when a workspace holds AgentExclusive lease
+        human_preempt_color = "#f0883e",  -- Visual flash/badge on Mod + G human preemptive takeover
     },
-    focus_ring = { enabled = false },
+    focus_ring = {
+        enabled = false,
+        width = 2.0,
+        active_color = "#58a6ff",
+        inactive_color = "#30363d",
+    },
+    shadow = {
+        enabled = true,
+        range = 16,
+        render_power = 3,
+        sharp = false,
+        color = "#00000073",
+        offset_x = 0.0,
+        offset_y = 4.0,
+        scale = 1.0,
+    },
+    dim = {
+        dim_inactive = false,
+        dim_strength = 0.15,
+        brightness = 1.0,
+        contrast = 1.0,
+    },
+    -- Top-level convenience fields (merged with `dim = { ... }` when specified):
+    brightness = 1.0,
+    dim_inactive = false,
+    dim_strength = 0.15,
+    blur = {
+        enabled = true,
+        size = 8,
+        passes = 2,
+        noise = 0.0117,
+        contrast = 0.8916,
+        brightness = 0.8172,
+        vibrancy = 0.1696,
+        xray = false,
+        ignore_opacity = false,
+    },
+    animations = {
+        enabled = true,
+        damping_ratio = 1.0,
+        stiffness = 800.0,
+        epsilon = 0.001,
+        open_scale_from = 0.85,
+        close_scale_to = 0.90,
+    },
     corner_radius = 10,
-    shadow = { enabled = true, softness = 16, spread = 4, offset = { x = 0, y = 4 }, color = "#00000088" },
 })
-
 ```
 
 ## 3. Keybindings, Modal Submaps & Gestures API

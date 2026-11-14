@@ -77,9 +77,25 @@ Configures `DecisionBackend` for closed-set evaluation (System-1 GUI `grid_225` 
 | `safety_gate_rules` | `integer` | `15` | Number of parallel binary `noul` safety checklist questions (prompt injection, 2FA, payment, credential dialogs) evaluated per frame. |
 | `media_mime_type` | `string` | `"image/webp"` | In-memory encoding format (`"image/webp"` or `"image/png"`) exported from `Koma`'s `memfd` (protected surfaces masked to `#000000`). |
 
+#### `[roles.decision_router.compiler]` (`DecisionCompilerConfig`) & `[roles.decision_router.compiler.grid]` (`GridSpec`)
+
+All `DecisionCompiler` thresholds, sentinel tokens, and decision-grid dimensions are configurable with sensible defaults (avoiding hardcoded compiler constants):
+
+| Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `compiler.grid.cols` | `integer` | `15` | Decision grid column count (`GridSpec`, `1..=64`; default `15x15 = 225` cells). |
+| `compiler.grid.rows` | `integer` | `15` | Decision grid row count (`GridSpec`, `1..=64`; default `15x15 = 225` cells). |
+| `compiler.fast_path_confidence` | `float` | `0.85` | Minimum confidence threshold required on `q_in_scope` and the selected action/target for direct System-1 fast-path execution (`0.0..=1.0`). |
+| `compiler.min_cell_prob` | `float` | `0.05` | Minimum cell probability retained when interpolating top-`K` probability-weighted cell centroids (`interpolate_grid_225_centroid`, `0.0..=1.0`). |
+| `compiler.time_slot_min_confidence` | `float` | `0.75` | Minimum per-slot confidence before `TimeSlotMacro` truncates a multi-step shortcut sequence (`0.0..=1.0`). |
+| `compiler.bernoulli_activation_threshold` | `float` | `0.80` | Minimum `P(Yes)` probability required to activate a conditional `BernoulliExpectedStep` (`0.0..=1.0`). |
+| `compiler.probe_min_prob` | `float` | `0.15` | Minimum probability required for `ThresholdProbe` candidate retention (`0.0..=1.0`). |
+| `compiler.stop_sentinel` | `string` | `"stop_done"` | Non-empty sentinel choice token signaling early sequence completion inside `TimeSlotMacro`. |
+| `compiler.fallback_token` | `string` | `"NONE_OR_OTHER"` | Non-empty open-world escape option enforced across `Choice` questions (`require_none_or_other`). |
+
 ### 2.4 `[roles.live_companion]` (`LiveSessionDriver` — Optional Progressive Module, Disabled by Default)
 
-Configures `jiku live` real-time voice, vision, and `Epoch`-fenced non-blocking action sessions (`tokio-tungstenite`). As part of `Jiku`'s **progressive modular roadmap**, real-time voice/live streaming (`jiku live`) is a decoupled optional module that remains **disabled by default** (`enabled = false`) unless explicitly enabled in `config.toml`:
+Configures `jiku live` real-time voice, vision, and `Epoch`-fenced non-blocking action sessions (`tokio-tungstenite`). As part of `Jiku`'s **progressive modular roadmap**, real-time voice/live streaming (`jiku live`) is a decoupled optional module that remains **disabled by default** (`enabled = false`) unless explicitly enabled in `config.toml`. Audio sample rates (`audio_in_sample_rate_hz`, `audio_out_sample_rate_hz`) and screen capture cadence (`max_screen_fps`) are configurable within validated bounds with sensible defaults:
 
 | Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
@@ -87,9 +103,9 @@ Configures `jiku live` real-time voice, vision, and `Epoch`-fenced non-blocking 
 | `provider` | `string` | `"google_ai_studio"` | Provider backing the stateful full-duplex WebSocket session when enabled. |
 | `protocol` | `string` | `"gemini_bidi"` | Wire protocol: `"gemini_bidi"` (`BidiGenerateContent`), `"openai_realtime"`, `"qwen_omni_realtime"`, or `"local_ws"`. |
 | `model` | `string` | `"gemini-2.5-flash-live"` | Multimodal live session model identifier. |
-| `audio_in_sample_rate_hz` | `integer` | `16000` | PipeWire uplink microphone capture rate (`16 kHz`, `16-bit mono PCM`, `20–100 ms` chunks). |
-| `audio_out_sample_rate_hz` | `integer` | `24000` | PipeWire downlink playback rate (`24 kHz PCM`) with real-time RMS/frequency lip-sync extraction. |
-| `max_screen_fps` | `integer` | `2` | Maximum `memfd` screen frame uplink rate (`1–2 FPS`) when `window.damage_settled` reports changes. |
+| `audio_in_sample_rate_hz` | `integer` | `16000` | Configurable PipeWire uplink microphone capture rate (`8000..=48000` Hz, default `16000` Hz, `16-bit mono PCM`, `20–100 ms` chunks). |
+| `audio_out_sample_rate_hz` | `integer` | `24000` | Configurable PipeWire downlink playback rate (`8000..=48000` Hz, default `24000` Hz PCM) with real-time RMS/frequency lip-sync extraction. |
+| `max_screen_fps` | `integer` | `2` | Configurable maximum `memfd` screen frame uplink rate (`1..=60` FPS, default `2` FPS) when `window.damage_settled` reports changes. |
 | `static_screen_zero_fps` | `bool` | `true` | Drops visual uplink to `0 FPS` when perceptual hash is unchanged, saving `~80%` visual tokens. |
 | `proactive_audio` | `bool` | `true` | Enables `Proactive Audio` gating so the model stays silent unless addressed or triggered. |
 | `context_compression_trigger_tokens` | `integer` | `24000` | Token threshold triggering server-side `contextWindowCompression`. |
@@ -139,6 +155,19 @@ max_questions_per_request = 1000
 require_none_or_other = true
 safety_gate_rules = 15
 media_mime_type = "image/webp"
+
+[roles.decision_router.compiler]
+fast_path_confidence = 0.85
+min_cell_prob = 0.05
+time_slot_min_confidence = 0.75
+bernoulli_activation_threshold = 0.80
+probe_min_prob = 0.15
+stop_sentinel = "stop_done"
+fallback_token = "NONE_OR_OTHER"
+
+[roles.decision_router.compiler.grid]
+cols = 15
+rows = 15
 
 [jikubox.triage]
 enabled = true
