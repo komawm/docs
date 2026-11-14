@@ -11,7 +11,7 @@
 
 ```text
 ~/.config/jiku/                  # Mounted Read-Only (ro) inside jikud sandbox
-├── config.toml                  # Static infrastructure: providers, role routing, sandbox, TTS, notify
+├── config.toml                  # Static infrastructure: providers, 3-driver role routing, jikubox triage, TTS, notify
 ├── init.lua                     # Phodopus policy hooks (memory shaping, notification rules, TTS triggers)
 └── skills/                      # Human-approved deterministic GUI macros (*.lua)
     ├── libreoffice_export.lua
@@ -19,10 +19,12 @@
 
 ~/.local/state/jiku/             # Mounted Read-Write (rw) inside jikud sandbox
 ├── state.db                     # SQLite WAL + FTS5 (L1 app_quirks + L2 episodes)
-├── audit.jsonl                  # Append-only action & Epoch ledger
+├── audit.jsonl                  # Append-only action, safety-gate & Epoch ledger
 └── staged_skills/               # Candidate Lua skills awaiting `jiku skills approve`
 
 ~/JikuBox/                       # Mounted Read-Write (rw) explicit human <-> Jiku file dropbox
+├── inbox/                       # Incoming files for `jiku box classify` zero-decode batch triage
+└── triaged/                     # Structured JSON/Markdown reports and sorted outputs
 ```
 
 ---
@@ -38,26 +40,107 @@
 | `daemon.dropbox_dir` | `string` | `"~/JikuBox"` | Explicit read-write exchange directory mounted into the sandbox. |
 | `koma.default_workspace` | `string` | `"agent:work"` | Default `Headless` `Deck` workspace leased via `koma-agent.sock`. |
 | `koma.default_overlay` | `string` | `"grid_225"` | Capture overlay requested on `capture.frame` (`"none"`, `"grid_225"`). |
-| `koma.perceptual_hash_threshold` | `integer` | `4` | Hamming distance threshold below which unchanged `memfd` tiles skip VLM re-inference. |
+| `koma.perceptual_hash_threshold` | `integer` | `4` | Hamming distance threshold below which unchanged `memfd` tiles skip VLM re-inference and `LiveSessionDriver` drops screen uplink to `0 FPS`. |
 
-### 2.2 `[providers.<id>]` Templates & `[roles]` Routing
+### 2.2 `[providers.<id>]` Templates & Three-Driver `[roles]` Routing
 
-Supported `kind` templates:
-* `"google_gemini"` — Native Gemini API supporting `gemini-decision-1` (`grid_225` + macro tool calls), Gemini Computer Use (`0..1000` normalized coordinates), and multimodal vision.
-* `"openai_compatible"` — Covers OpenAI, DeepSeek, OpenRouter, vLLM, `llama.cpp`, and Ollama (`/v1/chat/completions`).
-* `"anthropic"` — Native Anthropic Messages API with prompt caching and Computer Use coordinate normalization.
+Supported provider `kind` templates across `jikud`'s Three-Driver architecture:
+* `"google_gemini"` — Google AI Studio (`GEMINI_API_KEY`) and Vertex AI ADC supporting `DecisionsDriver` (`POST /v1beta/decisions` with literal model ID `"gemini-decision-1"`), `TurnModelDriver` (`reqwest` HTTP/2 SSE + Gemini Computer Use `0..1000` coordinates), and `LiveSessionDriver` (`BidiGenerateContent` stateful full-duplex WebSocket).
+* `"openai_compatible"` — Covers `TurnModelDriver` (`/v1/chat/completions` across OpenAI, DeepSeek, OpenRouter, vLLM, `llama.cpp`, and Ollama) and `LiveSessionDriver` (OpenAI Realtime API, Qwen-Omni Realtime, and local WebRTC/WebSocket speech-to-speech endpoints).
+* `"anthropic"` — Native Anthropic `Messages` API (`TurnModelDriver` HTTP/2 SSE) with prefix prompt caching and Computer Use coordinate normalization.
 
-Role assignments under `[roles]`:
-* `planner` — High-level task decomposition and recovery planning.
-* `actor` — Per-step visual grounding, `grid_225` cell selection, or `0..1000` coordinate emission.
-* `fast_guard` — Optional low-latency model for modal dialog detection and post-action verification.
+Turn-based role assignments under `[roles]`:
+* `planner` (`TurnModelDriver`) — High-level task decomposition, System-2 fallback recovery when `decision_router` confidence `< 0.85`, free-form `type_text` generation, and candidate `staged_skills/*.lua` synthesis.
+* `actor` (`DecisionsDriver` / `TurnModelDriver`) — Per-step visual grounding, `grid_225` cell selection, or `0..1000` coordinate emission.
+* `fast_guard` (`DecisionsDriver` / `TurnModelDriver`) — Low-latency modal dialog detection and post-action verification.
 
-### 2.3 `[memory]`, `[notify]`, `[tts]` & `[avatar]`
+### 2.3 `[roles.decision_router]` (`DecisionsDriver` Zero-Decode Control Plane)
 
-* **`[memory]`**: `backend = "sqlite_fts5"` (default), `l0_frame_ring_size = 4`, `stage_new_skills = true`, optional `external_mcp_command` for external `MemoryProvider` bridging.
+Configures the `gemini-decision-1` single-prefill zero-decode router (`POST /v1beta/decisions` via `GEMINI_API_KEY`) used for System-1 GUI control, 15-rule visual safety gating, Live2D 255-cue selection, and L2 FTS5 trajectory reranking:
+
+| Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `provider` | `string` | `"google_ai_studio"` | Provider reference using `GEMINI_API_KEY` against `POST /v1beta/decisions`. |
+| `model` | `string` | `"gemini-decision-1"` | **Must** be the exact literal `"gemini-decision-1"` (no `-latest` alias). |
+| `confidence_threshold` | `float` | `0.85` | Minimum probability required on `q_in_scope` and top action/target to dispatch directly to `Koma`; `< 0.85` escalates to `fallback_role`. |
+| `fallback_role` | `string` | `"planner"` | `TurnModelDriver` role invoked when confidence `< 0.85` or open-ended text generation is needed. |
+| `max_questions_per_request` | `integer` | `1000` | Maximum parallel structured questions (`1..=1000`) packed into a single prefill pass. |
+| `require_none_or_other` | `bool` | `true` | Enforces `"NONE_OR_OTHER"` / `"not_visible"` fallback option + paired `q_in_scope` (`noul`) gate on every `Choice` question. |
+| `safety_gate_rules` | `integer` | `15` | Number of parallel binary `noul` safety checklist questions (prompt injection, 2FA, payment, credential dialogs) evaluated per frame. |
+| `media_mime_type` | `string` | `"image/webp"` | In-memory encoding format (`"image/webp"` or `"image/png"`) exported from `Koma`'s `memfd` (protected surfaces masked to `#000000`). |
+
+### 2.4 `[roles.live_companion]` (`LiveSessionDriver` Stateful Full-Duplex WebSocket)
+
+Configures `jiku live` real-time voice, vision, and `Epoch`-fenced non-blocking action sessions (`tokio-tungstenite`):
+
+| Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `provider` | `string` | `"google_ai_studio"` | Provider backing the stateful full-duplex WebSocket session. |
+| `protocol` | `string` | `"gemini_bidi"` | Wire protocol: `"gemini_bidi"` (`BidiGenerateContent`), `"openai_realtime"`, `"qwen_omni_realtime"`, or `"local_ws"`. |
+| `model` | `string` | `"gemini-2.5-flash-live"` | Multimodal live session model identifier. |
+| `audio_in_sample_rate_hz` | `integer` | `16000` | PipeWire uplink microphone capture rate (`16 kHz`, `16-bit mono PCM`, `20–100 ms` chunks). |
+| `audio_out_sample_rate_hz` | `integer` | `24000` | PipeWire downlink playback rate (`24 kHz PCM`) with real-time RMS/frequency lip-sync extraction. |
+| `max_screen_fps` | `integer` | `2` | Maximum `memfd` screen frame uplink rate (`1–2 FPS`) when `window.damage_settled` reports changes. |
+| `static_screen_zero_fps` | `bool` | `true` | Drops visual uplink to `0 FPS` when perceptual hash is unchanged, saving `~80%` visual tokens. |
+| `proactive_audio` | `bool` | `true` | Enables `Proactive Audio` gating so the model stays silent unless addressed or triggered. |
+| `context_compression_trigger_tokens` | `integer` | `24000` | Token threshold triggering server-side `contextWindowCompression`. |
+| `sliding_window_tokens` | `integer` | `16000` | Target token window retained after sliding-window compression. |
+| `session_resumption` | `bool` | `true` | Tracks `SessionResumptionUpdate` handles and auto-reconnects on `GoAway` across the 10-minute WebSocket ceiling. |
+| `default_tool_scheduling` | `string` | `"WHEN_IDLE"` | Default `NON_BLOCKING` `toolResponse` continuation scheduling (`"INTERRUPT"`, `"WHEN_IDLE"`, `"SILENT"`). |
+
+### 2.5 `[jikubox.triage]` (Zero-Decode Multimodal Batch Classification & Screening)
+
+Configures `jiku box classify` batch evaluation over `~/JikuBox/` using `DecisionsDriver`:
+
+| Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `enabled` | `bool` | `true` | Enables zero-decode batch screening and tagging for `~/JikuBox/`. |
+| `driver` | `string` | `"decision_router"` | Routes batch evaluation through `DecisionsDriver` (`gemini-decision-1`). |
+| `max_questions_per_batch` | `integer` | `1000` | Questions packed per multimodal file (`1..=1000`, `0` output tokens). |
+| `decompose_rubrics_to_noul` | `bool` | `true` | Automatically decomposes coarse `Score` rubrics into `5..=10` binary `Yes/No` (`noul`) checklist questions for higher calibration. |
+| `two_stage_ranking` | `bool` | `true` | Runs binary `noul` coarse screening before fine-grained rubric scoring. |
+
+### 2.6 `[memory]`, `[notify]`, `[tts]` & `[avatar]`
+
+* **`[memory]`**: `backend = "sqlite_fts5"` (default), `l0_frame_ring_size = 4`, `fts5_rerank_with_decisions = true` (reranks top-`K` FTS5 candidates via `DecisionsDriver`), `stage_new_skills = true`, optional `external_mcp_command` for external `MemoryProvider` bridging.
 * **`[notify]`**: `desktop_dbus = true` (`org.freedesktop.Notifications` -> `swaync`), `urgency_on_verification = "critical"`, optional `webhook_url_env`.
-* **`[tts]`**: `enabled = false | true`, `provider = "voicevox" | "piper" | "openai_speech"`, `endpoint = "http://127.0.0.1:50021"`, `speaker_id = 3`, `speak_on = ["task_completed", "verification_needed"]`.
-* **`[avatar]`**: `emit_cues = true` — broadcasts real-time `AvatarCue` frames (emotion tag, `(u, v)` virtual cursor gaze, and mora/phoneme timing envelopes) to any subscribed Live2D / VRM `wlr-layer-shell` companion client on `jiku.sock`.
+* **`[tts]`**: `enabled = false | true`, `provider = "voicevox" | "piper" | "openai_speech"`, `endpoint = "http://127.0.0.1:50021"`, `speaker_id = 3`, `speak_on = ["task_completed", "verification_needed"]` (used in turn mode; bypassed in native `24 kHz PCM` `jiku live` mode).
+* **`[avatar]`**: `emit_cues = true`, `expression_palette_size = 255` — broadcasts real-time `AvatarCue` frames (emotion tag, discrete `expression_id` / `motion_id` up to `255` options, `(u, v)` virtual cursor gaze, and either VOICEVOX mora envelopes or live `24 kHz` RMS/frequency lip-sync envelopes) to any subscribed Live2D / VRM `wlr-layer-shell` companion client on `jiku.sock`.
+
+### 2.7 Example `config.toml` Snippet
+
+```toml
+[roles.decision_router]
+provider = "google_ai_studio"
+model = "gemini-decision-1"
+confidence_threshold = 0.85
+fallback_role = "planner"
+max_questions_per_request = 1000
+require_none_or_other = true
+safety_gate_rules = 15
+media_mime_type = "image/webp"
+
+[roles.live_companion]
+provider = "google_ai_studio"
+protocol = "gemini_bidi"
+model = "gemini-2.5-flash-live"
+audio_in_sample_rate_hz = 16000
+audio_out_sample_rate_hz = 24000
+max_screen_fps = 2
+static_screen_zero_fps = true
+proactive_audio = true
+context_compression_trigger_tokens = 24000
+sliding_window_tokens = 16000
+session_resumption = true
+default_tool_scheduling = "WHEN_IDLE"
+
+[jikubox.triage]
+enabled = true
+driver = "decision_router"
+max_questions_per_batch = 1000
+decompose_rubrics_to_noul = true
+two_stage_ranking = true
+```
 
 ---
 
@@ -68,9 +151,18 @@ Role assignments under `[roles]`:
 jiku
 
 # Submit a background GUI task from terminal or an external Coding Agent (Claude Code / Codex)
+# (Routes via DecisionsDriver >=0.85 fast-path with automatic TurnModelDriver planner fallback)
 jiku run --workspace agent:work "Export ~/JikuBox/draft.odt to PDF in LibreOffice"
 
-# Inspect live daemon status, leased workspaces, and current Epoch
+# Start or attach to a Stateful Full-Duplex WebSocket companion session (LiveSessionDriver)
+# Streams 16kHz PipeWire mic + damage-deduped 1-2 FPS (0 FPS when static) memfd frames + 24kHz audio
+jiku live --workspace agent:work --proactive-audio
+
+# Run zero-decode single-prefill batch classification, tagging & rubric screening on ~/JikuBox/
+# Packs up to 1,000 noul/choice/score questions per file via gemini-decision-1
+jiku box classify ~/JikuBox/inbox --rubric ~/.config/jiku/triage_rubric.toml --out ~/JikuBox/triaged/report.json
+
+# Inspect live daemon status, active driver metrics, leased workspaces, and current Epoch
 jiku status
 
 # Review and promote a staged Lua skill into ~/.config/jiku/skills/ (runs outside jikud ro mount)
@@ -86,20 +178,58 @@ jiku mcp --stateless
 
 ## 4. `jiku.sock` EventBus Wire Envelope (TUI, TTS & Live2D Subscribers)
 
-Clients connecting to `$XDG_RUNTIME_DIR/jiku.sock` use the same 4-byte little-endian length-prefixed JSON framing as `koma-proto` and can subscribe to `["task.progress", "skill.staged", "tts.utterance", "avatar.cue"]`:
+Clients connecting to `$XDG_RUNTIME_DIR/jiku.sock` use the same 4-byte little-endian length-prefixed JSON framing as `koma-proto` and can subscribe to `["task.progress", "skill.staged", "tts.utterance", "avatar.cue"]`.
+
+### 4.1 Turn-Mode VOICEVOX Mora Lip-Sync Envelope (`avatar.cue`)
+
+When `TurnModelDriver` + `TtsProvider` (`voicevox`) speaks a turn summary, `avatar.cue` carries exact phoneme/mora durations and pitch contours:
 
 ```json
 {
   "seq": 88,
   "topic": "avatar.cue",
   "payload": {
+    "driver": "turn_tts",
     "emotion": "thinking",
+    "expression_id": 14,
+    "motion_id": 3,
     "gaze_uv": [0.62, 0.35],
+    "interrupted": false,
     "utterance_locale": "ja-JP",
     "mora_envelope": [
       { "phoneme": "k", "vowel": "o", "duration_ms": 95, "pitch": 5.82 },
       { "phoneme": "m", "vowel": "a", "duration_ms": 110, "pitch": 5.95 }
     ]
+  }
+}
+```
+
+### 4.2 Live-Mode `24 kHz PCM` RMS / Frequency-Band Lip-Sync Envelope (`avatar.cue`)
+
+When `LiveSessionDriver`'s `Downlink` task streams native `24 kHz PCM` audio to PipeWire (or flushes playback upon server VAD `serverContent: { interrupted: true }` barge-in), `avatar.cue` broadcasts real-time RMS amplitude, three-band vowel formant energies, and `DecisionsDriver` 255-cue selections:
+
+```json
+{
+  "seq": 142,
+  "topic": "avatar.cue",
+  "payload": {
+    "driver": "live_session",
+    "emotion": "acting",
+    "expression_id": 128,
+    "motion_id": 42,
+    "gaze_uv": [0.48, 0.71],
+    "interrupted": false,
+    "sample_rate_hz": 24000,
+    "rms_envelope": {
+      "frame_ms": 20,
+      "rms_db": -14.2,
+      "mouth_open_0_1": 0.68,
+      "freq_bands_hz": {
+        "low_200_800": 0.74,
+        "mid_800_2500": 0.59,
+        "high_2500_6000": 0.21
+      }
+    }
   }
 }
 ```

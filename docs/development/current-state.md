@@ -1,43 +1,45 @@
-# Initial source inventory
+# Current-state source and verification inventory
 
-This inventory describes the imported source on 2026-11-14. Refresh it when build and runtime acceptance changes. Detailed local initialization logs are retained in the workspace's ignored `recording/` directory rather than published as source.
+This inventory records the state of the `komawm` workspace and its six published GitHub repositories (`v0.0.1` incubation baseline) on 2026-11-14. Refresh it when build, contract or runtime acceptance changes. Detailed local verification logs and read-only upstream reference checkouts (`recording/references/Hyprland`, `recording/references/niri`) are retained in the workspace's ignored `recording/` directory rather than published as product source.
 
-## What exists
+## Organization & repository status (`v0.0.1` incubation baseline)
 
-The Cargo manifest lists nine packages: five libraries (`koma-proto`, `koma-model`, `koma-lua`, `koma-render`, `koma-seat`) and four binaries (`koma`, `komactl`, `koma-mcp`, `koma-overview`). They contain implementation source and inline unit tests. The compositor has explicit Winit, TTY and headless-check launch modes; Lua/renderer/layer-shell integrations have Cargo feature boundaries. Default compositor features include both Winit and TTY integration.
+All six `komawm` repositories (`koma`, `jiku`, `koma-types`, `docs` / checkout `koma-docs`, `packaging`, and `.github`) are initialized, verified against their local repository gates, and published to GitHub under the `komawm` organization at the `v0.0.1` incubation baseline. Development remains on `0.0.x` until independent runtime and security acceptance criteria for `v0.1.0` are met.
 
-The model includes Dwindle and scrolling/tabbed structures, deck/stash and floating state, animation, rules, leases and clocks. Protocol source covers framing, capabilities, epoch identifiers, RPC schemas and Unix FD transport. The Lua layer includes registry/type generation, a Phodopus bridge and host-operation scheduler. The render and compositor trees include shaders, scene composition, input/Wayland handlers, IPC, configuration reload and Xwayland integration. These are source inventory statements, not test results.
+## What exists and passes under Rust `1.100.0` (Edition 2024)
 
-The initial import included five architecture/API specifications, Koma/Jiku examples, LuaLS definitions and session templates. Canonical specifications and shared development docs now live in koma-docs; Jiku examples/service templates live in jiku; the unchanged LuaLS snapshot lives in koma-types. Koma keeps its nine crates, configuration example and session integration resources.
+### 1. `koma` (`28f5d9513e8d2952c1522b8d8ae729f7d5574c50`)
 
-## Boundaries that matter
+The `koma` workspace manifest contains nine crates: five libraries (`koma-proto`, `koma-model`, `koma-lua`, `koma-render`, `koma-seat`) and four binaries (`koma`, `komactl`, `koma-mcp`, `koma-overview`). Under the pinned target toolchain **Rust `1.100.0` (Edition 2024)** at commit `28f5d9513e8d2952c1522b8d8ae729f7d5574c50`, all nine crates cleanly pass the repository quality gates:
 
-- The separate Jiku repository contains four library-only, non-runnable scaffolding crates (`jikud`, `jiku`, `jiku-memory`, `jiku-tts`), configuration/service templates and an internal skills directory. No daemon/CLI is implemented. Provider, memory, voice and sandbox descriptions remain design targets; avatar integration is deferred.
-- `--headless-check` currently reports a launch-path message; it does not initialize a display backend or prove a complete compositor state-machine, rendering, input, IPC or security test.
-- Package descriptions and specs include latency, zero-copy, portability and sandbox guarantees. They need dedicated build/runtime measurements and adversarial acceptance. Do not infer them from names, comments or missing `todo!` markers.
-- Koma pins Smithay to a Git revision and consumes Phodopus Git packages. A lockfile and dependency/API compatibility checks are required for a reproducible build baseline. Do not silently redirect production dependencies to a sibling checkout.
-- The target is Rust 1.100.0 / Rust 2024. Rust 1.100.0 is installed in the grouped workspace's user-owned `.targets` caches, selected via the workspace environment helper. Earlier installed-1.98.1 structural probes remain historical fallback observations. Jiku's scaffold checks pass under the actual target compiler; they execute no agent behavior.
-- The architecture mentions Linux/BSD targets. The initial development host is Arch Linux; this is not evidence of FreeBSD/OpenBSD support.
-- Koma (including `koma-proto`) and Jiku use GPL-3.0-or-later; koma-types uses Apache-2.0; documentation and packaging infrastructure use MIT. Each repository has one `LICENSE`; preserve third-party provenance.
+- `just fmt-check` (`cargo fmt --all -- --check`)
+- `just check-core` (`cargo check --workspace --locked --exclude koma --exclude koma-render`)
+- `just typecheck` (`cargo check --workspace --all-targets --locked`)
+- `just clippy` (`cargo clippy --workspace --all-targets --locked -- -D warnings`)
+- `just test-core` (`cargo test --locked -p koma-proto -p koma-model -p koma-lua -p koma-seat`)
+- `just test` (`cargo test --workspace --locked`, passing **25 unit tests** across `koma-model` (`21`), `koma-lua` (`2`), `koma-render` (`1`), and `koma` (`1`))
+- `komactl gen-types` (deterministic LuaLS definition emission from `koma-lua`)
+- `koma --headless-check` (headless structural configuration and launch-path check)
 
-## Incubation and dependencies
+### 2. `koma-types` (`generator_reproduced = true`)
 
-The requested initial package version is `0.0.1`. Development stays on `0.0.x` until a first formal `0.1.0` release line is accepted. No version change alone is publication or release evidence.
+`koma-types` reproduces `types/koma.lua` byte-for-byte from `komactl gen-types` at Koma revision `28f5d9513e8d2952c1522b8d8ae729f7d5574c50`, recorded in `manifest.toml` with `generator_reproduced = true` and verified by `just check`.
 
-Use the latest dependency versions that have been verified compatible with Koma. The inherited fixed Smithay Git revision is an explicit architecture/API compatibility exception; updating it requires a tested integration migration. Direct dependencies have been updated to the verified compatible resolution baseline; this does not establish that every inherited source API compiles. Rustix now uses 1.1.6, correcting the initial 0.38 assumption; protocol compilation succeeds with that manifest-only correction. The unused wgpu declaration was removed rather than retained as an unconsumed dependency. Phodopus's upstream identity and licensing stay independent; a sibling checkout is not an implicit source override.
+### 3. `jiku` (Three-Driver pure-data contracts & scaffold tests)
 
-## Initialization checks
+The `jiku` workspace (`jikud`, `jiku`, `jiku-memory`, `jiku-tts`) defines pure-data contracts, configuration schemas, wire envelopes, and unit tests for the **Three-Driver architecture** (`DecisionsDriver` for `gemini-decision-1` zero-decode single-prefill decisions, `TurnModelDriver` for HTTP/2 SSE planner/text/Lua synthesis turns, and `LiveSessionDriver` for stateful full-duplex WebSocket `BidiGenerateContent` companion sessions) and passes all local formatting, typecheck, Clippy, and unit test gates under Rust `1.100.0`. Prior to `v0.1.0`, `jiku` remains a library-only, non-runnable scaffold with no network I/O daemon or executable CLI binary.
 
-Koma infrastructure validation passes metadata, workflow and helper-script checks. Jiku's four library-only scaffolds pass their full local checks with Rust 1.100.0 and a Cargo.lock; their zero-test suites do not establish a runnable daemon. Koma now has a generated Cargo.lock resolving 263 packages under Rust 1.100.0. It records the reviewed solver baseline with current compatible dependency selections and the explicit Smithay compatibility exception; this is dependency resolution evidence, not proof of source/API compatibility. The Rust 1.100.0 core test command compiles `koma-proto`, then fails in inherited `koma-model` source: layout/animation code uses `width`/`height` where `LogicalRect` defines `w`/`h`, and some code constructs `WindowId` as a tuple despite its struct representation. The observed run reports 125 library errors and 163 library-test errors; the suite does not reach passing tests.
+## Boundaries that still matter
 
-The actual-target formatter gate also fails on inherited differences and a Lua recorder Rust string syntax error. These failures are source remediation work, not an unresolved compiler installation or missing lockfile. Full Rust quality and runtime acceptance remain open. Latest local logs are `koma-test-core-1.100.log` and `koma-fmt-1.100.log` under ignored initialization evidence.
+- **Compilation & unit tests vs. live display/runtime acceptance**: Passing `just test`, `just clippy`, and `koma --headless-check` under Rust `1.100.0` proves source/API coherence and unit-tested model/Lua/render invariants at `28f5d9513e8d2952c1522b8d8ae729f7d5574c50`. It does **not** initialize a live display backend or prove end-to-end nested Wayland rendering, DRM/KMS scanout, physical `libinput`/`libseat` device handling, `SCM_RIGHTS` `memfd` zero-copy frame transport under load, or adversarial sandbox enforcement.
+- **Jiku execution boundary**: While `jiku` now codifies and unit-tests the pure-data contracts for `DecisionsDriver`, `TurnModelDriver`, and `LiveSessionDriver` alongside configuration templates and bundled skills, live HTTP/2 SSE, `/v1beta/decisions`, WebSocket `BidiGenerateContent`, PipeWire audio, and Landlock daemon execution remain `v0.1.0` implementation targets; Live2D/VRM avatar rendering remains a separate subscriber boundary.
+- **Dependency provenance**: `Koma` pins Smithay to a reviewed Git revision and consumes `Phodopus` as an independent upstream Git dependency (`https://github.com/Xuepoo/phodopus`) locked in `Cargo.lock`. Do not silently redirect dependencies to sibling workstation checkouts.
+- **Platform & licensing boundaries**: The development host is Arch Linux; FreeBSD/OpenBSD portability remains unverified. `Koma` (including `koma-proto`) and `Jiku` use `GPL-3.0-or-later`; `koma-types` uses `Apache-2.0`; `koma-docs`, `packaging`, and `.github` use `MIT`.
 
-Historical first probes found inherited formatter differences, a missing Koma Cargo.lock and an incomplete offline Phodopus Git cache. Keep those logs as baseline history, not current target-build results. The initial missing-lockfile/offline-cache condition is resolved. CarryCtx task `KOM-0003` retains the remaining Koma quality/remediation work.
+## Next acceptance stages toward `v0.1.0`
 
-## Acceptance work
+Follow the [testing plan](https://github.com/komawm/docs/blob/main/docs/development/testing.md) in strict order:
 
-Complete target-compiler tests and full workspace compilation before calling the imported source runnable. Run core/model tests, enabled Phodopus tests, renderer/compositor compilation and Clippy independently from document/configuration validation. Keep every failure with its exact command and revision.
-
-Then follow the [testing plan](https://github.com/komawm/docs/blob/main/docs/development/testing.md): explicit nested Winit, disposable VM sessions and separately authorized physical-seat tests. No initialization result should be reported as a successful replacement for the current Hyprland session.
-
-The LuaLS file in koma-types remains the imported snapshot. Its hash and syntax are checked, but regeneration from Koma's type generator is still pending. No public JSON Schema crate or schema generation is claimed by this initialization.
+1. **Nested compositor validation**: Exercise `koma --winit` in an isolated nested window with test Wayland clients, IPC commands (`komactl`), and `Phodopus` Lua configuration reload.
+2. **Disposable QEMU/KVM session validation**: Validate `koma --tty`, `seatd`/`logind`, virtual DRM/KMS, and `koma-agent.sock` `Epoch` fencing inside an isolated VM image using read-only ISOs from `ISO_PATH` and recording command lines/evidence under ignored `recording/`.
+3. **Separately authorized physical-seat & runnable `jikud` acceptance**: Only with explicit user authorization, validate physical GPU/input hardware and connect a runnable `jikud` implementation against `koma-agent.sock`. Never replace the active Hyprland host session during routine development.

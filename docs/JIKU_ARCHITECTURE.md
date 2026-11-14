@@ -1,6 +1,6 @@
 # Jiku (`jiku` / `jikud`) Native Desktop Agent Architecture Specification
 
-> **Status**: Architecture Baseline v0.2
+> **Status**: Architecture Baseline v0.3
 > **Binary & Daemon Names**: `jikud` (Background daemon), `jiku` (Detachable TUI / CLI & `jiku mcp` bridge)
 > **Configuration & State**: `~/.config/jiku/{config.toml, init.lua, skills/*.lua}` (Read-Only in sandbox), `~/.local/state/jiku/` (Read-Write), `~/JikuBox/` (Explicit file exchange dropbox)
 > **Companion Compositor**: `Koma` (`komawm`) via `$XDG_RUNTIME_DIR/koma/<sig>/koma-agent.sock`
@@ -14,7 +14,7 @@
 Following the strict Unix separation established in `docs/ARCHITECTURE.md` (and analogous to the decoupling between `bitty` and `wheel`), `Koma` and `Jiku` live in **separate binaries, separate configuration trees, and separate failure domains**:
 
 1. **Zero Network or Inference Bloat Inside `Koma`**: `Koma` remains a pure real-time Wayland compositor (`Smithay` + `calloop` + `libseat` + `Phodopus`) with zero HTTP/TLS dependencies, zero OCR/image encoders on its `240 Hz` render thread, and deterministic sub-millisecond `Mod + G` Ring 0 preemption.
-2. **Rust Trunk + Embedded `Phodopus` Lua 5.4 Brain**: `jikud` compiles to a single static Rust binary handling zero-copy `SCM_RIGHTS` `memfd` frame mapping, perceptual block-hash deduplication, ROI image cropping, async HTTP/2 SSE model streaming, SQLite WAL + FTS5 persistence, and `Landlock` kernel self-sandboxing, while embedding the same pure-Rust stackless Lua 5.4 VM (`Phodopus`) used by `Koma` for hot-reloadable policy hooks (`~/.config/jiku/init.lua`) and parameterized GUI skills (`skills/*.lua`).
+2. **Rust Trunk + Embedded `Phodopus` Lua 5.4 Brain**: `jikud` compiles to a single static Rust binary handling zero-copy `SCM_RIGHTS` `memfd` frame mapping, perceptual block-hash deduplication, ROI image cropping, heterogeneous model drivers (`DecisionsDriver`, `TurnModelDriver`, `LiveSessionDriver`), SQLite WAL + FTS5 persistence, and `Landlock` kernel self-sandboxing, while embedding the same pure-Rust stackless Lua 5.4 VM (`Phodopus`) used by `Koma` for hot-reloadable policy hooks (`~/.config/jiku/init.lua`) and parameterized GUI skills (`skills/*.lua`).
 
 ---
 
@@ -39,7 +39,7 @@ Following the strict Unix separation established in `docs/ARCHITECTURE.md` (and 
 Unlike AI Coding Agents (`Claude Code`, `Codex`, `Copilot`, `OpenCode`) whose core job is editing source trees and running arbitrary `sh`/`bash` pipelines, **`Jiku` deliberately omits any generic Shell execution tool**:
 
 1. **Blocking Visual Prompt Injection -> RCE**: `Jiku` continuously inspects untrusted visual content (web pages, chat windows, PDFs, third-party GUI apps). Without `sh`/`execve` privileges, even a successful visual prompt injection is strictly confined to synthetic pointer/keyboard events inside an isolated `Headless` workspace and cannot escalate to arbitrary host command execution.
-2. **Kernel Self-Locking (`Landlock` LSM + `NoNewPrivileges`)**: Immediately after startup config parsing, `jikud` enforces `prctl(PR_SET_NO_NEW_PRIVS, 1)` and applies a Linux `Landlock` ruleset restricting filesystem access to the three paths above, system TLS certificates, and outbound HTTPS model/TTS endpoints—denying `LANDLOCK_ACCESS_FS_EXECUTE` on host binaries.
+2. **Kernel Self-Locking (`Landlock` LSM + `NoNewPrivileges`)**: Immediately after startup config parsing, `jikud` enforces `prctl(PR_SET_NO_NEW_PRIVS, 1)` and applies a Linux `Landlock` ruleset restricting filesystem access to the three paths above, system TLS certificates, and outbound HTTPS/WSS model/TTS endpoints—denying `LANDLOCK_ACCESS_FS_EXECUTE` on host binaries.
 3. **Declarative App Profiles Instead of Arbitrary Spawn**: When `Jiku` needs to launch a GUI application (e.g., Chromium, LibreOffice, Blender), it requests a named allowlisted profile (`profile = "chromium-research"`). `Koma` spawns the container (`bwrap` / `podman`) bound to a dedicated `wp-security-context-v1` Wayland jail socket pinned to `agent:work`, blocking `zwlr_layer_shell_v1`, clipboard snooping, and virtual keyboard injection outside the jail.
 4. **Inner `Phodopus` Lua Sandbox**: All policy hooks, skills, and model-synthesized micro-transactions execute inside `Phodopus` with `io`, `os`, `package.loadlib`, and `debug` stripped, bounded by deterministic `InstructionBudget` fuel and `gc-arena` heap ceilings.
 5. **Hardware Blackout & `< 1 ms` `Mod + G` Human Preemption**: Windows matching `block_out_from = "agent_capture" | "all"` (password managers, Polkit dialogs) are masked to solid `#000000` in `Koma`'s offscreen FBO before `memfd` export, and pressing `Mod + G` immediately increments `Epoch`, flushes held `VirtualSeat` keys, and aborts any in-flight `Jiku` transaction.
@@ -107,30 +107,286 @@ pub trait ContextProvider: Send + Sync {
 
 ---
 
-## 5. Native Runtime: Model Templates, Detachable TUI, Notifications, TTS & Live2D Bus
+## 5. Three-Driver Model Architecture in `jikud`
+
+Rather than forcing every desktop interaction through a single autoregressive chat endpoint, `jikud` partitions inference across **three specialized model drivers** matched to the latency, output cardinality, and duplex requirements of each workload:
+
+1. **`DecisionsDriver`**: Zero-decode single-prefill structured probability engine (`gemini-decision-1` via Google AI Studio `POST /v1beta/decisions`, authenticated via `GEMINI_API_KEY`).
+2. **`TurnModelDriver`**: Autoregressive turn-based HTTP/2 SSE driver (`reqwest`) for open-ended planning, free-form text input, and Lua skill synthesis.
+3. **`LiveSessionDriver`**: Stateful full-duplex WebSocket driver (`tokio-tungstenite` / `BidiGenerateContent`) for real-time voice, vision, and low-latency action multiplexing (`jiku live`).
+
+```
+                      +------------------------------------------------+
+                      |         Koma Compositor (koma-agent.sock)      |
+                      |   SCM_RIGHTS memfd + Damage EventRing + Epoch  |
+                      +------------------------------------------------+
+                                |              |                 ^
+         (1) Fast System-1 Gate |              | (3) 1-2 FPS     | Epoch-Fenced
+             (<250 ms Prefill)  v              v     + 16kHz PCM | Non-Blocking Actions
+      +----------------------------+    +----------------------------------+
+      |      DecisionsDriver       |    |        LiveSessionDriver         |
+      |     gemini-decision-1      |    |   Stateful Full-Duplex WebSocket |
+      |   POST /v1beta/decisions   |    |  (Uplink / Downlink / ActBridge) |
+      +----------------------------+    +----------------------------------+
+           |                  |
+  (>=0.85) |                  | (<0.85 or Open-Ended Synthesis)
+  Direct   |                  v
+  Dispatch |        +------------------------------------+
+           |        |          TurnModelDriver           |
+           +------->|      reqwest + HTTP/2 SSE          |
+                    | (Planner / Free-Form Text / Lua)   |
+                    +------------------------------------+
+```
+
+---
+
+### 5.1 `DecisionsDriver` (`gemini-decision-1` via `POST /v1beta/decisions`)
+
+`DecisionsDriver` targets Google AI Studio's purpose-built decision endpoint (`POST https://generativelanguage.googleapis.com/v1beta/decisions`, authenticated with `GEMINI_API_KEY` and literal model ID `"gemini-decision-1"`).
+
+#### Zero-Decode Single-Prefill Mechanism & Wire JSON Contract
+
+Unlike standard generative LLMs that decode output tokens autoregressively one token at a time, `gemini-decision-1` performs **Single-Prefill Zero-Decode Evaluation**:
+
+* **`0` Output Tokens Generated**: The model runs a single forward prefill pass over one shared multimodal context (text + inline image/audio/PDF/video bytes) and evaluates **`1..=1000` parallel structured questions** simultaneously in the same request, billing `0` output tokens (`usage.output_tokens == 0`).
+* **Three Native Question Primitives**:
+  1. **`noul` (`Yes/No`)**: Binary probability scalar clamped in **`[0.01, 0.99]`** for scope gates, safety checklists, and binary relevance verification.
+  2. **`choice` (`2..=255` options)**: Mutually exclusive categorical probability distribution over a `criteria` map (`key -> description`), returning the top `choice` key and `probabilities` summing to **`1.0`**.
+  3. **`score` (`2..=255` levels)**: Ordered rubric evaluation over a `criteria` array (`2..=255` rubric descriptions), returning the continuous expected value `score`, per-level `probabilities`, and a `legend` map.
+* **Flat `~150–250 ms` Latency**: Because no autoregressive decode loop executes, evaluating `100` parallel questions over a single `memfd` frame completes in the same `~150–250 ms` wall-clock window as evaluating `1` question.
+
+**`POST /v1beta/decisions` Request Wire Structure**:
+
+```json
+{
+  "model": "gemini-decision-1",
+  "contents": [
+    {
+      "parts": [
+        {
+          "inline_data": {
+            "mime_type": "image/webp",
+            "data": "<base64-encoded Koma memfd frame with grid_225 overlay>"
+          }
+        },
+        {
+          "text": "Goal: Click the Export button and verify dialog readiness."
+        }
+      ]
+    }
+  ],
+  "questions": {
+    "q_in_scope": {
+      "type": "noul",
+      "instructions": "Is the Export button visible and enabled on screen?"
+    },
+    "q_grid_target": {
+      "type": "choice",
+      "instructions": "Which grid_225 cell contains the center of the Export button?",
+      "criteria": {
+        "L13": "Grid cell L13",
+        "M13": "Grid cell M13",
+        "NONE_OR_OTHER": "Target is not visible or outside the listed cells"
+      }
+    },
+    "q_ui_readiness": {
+      "type": "score",
+      "instructions": "Rate how ready the Export dialog is for immediate confirmation.",
+      "criteria": [
+        "Dialog is occluded or still loading",
+        "Dialog is visible but required fields are incomplete",
+        "Dialog is fully populated and ready to export"
+      ]
+    }
+  }
+}
+```
+
+**`POST /v1beta/decisions` Response Wire Structure (`usage.output_tokens == 0`)**:
+
+```json
+{
+  "results": {
+    "q_in_scope": {
+      "type": "noul",
+      "noul": 0.97
+    },
+    "q_grid_target": {
+      "type": "choice",
+      "choice": "L13",
+      "probabilities": {
+        "L13": 0.54,
+        "M13": 0.41,
+        "NONE_OR_OTHER": 0.05
+      }
+    },
+    "q_ui_readiness": {
+      "type": "score",
+      "score": 2.74,
+      "probabilities": {
+        "1": 0.04,
+        "2": 0.18,
+        "3": 0.78
+      },
+      "legend": {
+        "1": "Dialog is occluded or still loading",
+        "2": "Dialog is visible but required fields are incomplete",
+        "3": "Dialog is fully populated and ready to export"
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 1284,
+    "output_tokens": 0
+  }
+}
+```
+
+#### Sub-Grid Probability-Weighted Centroid Interpolation (`interpolate_grid_225_centroid`)
+
+When a wide UI control (such as an `"Export"` button) straddles the boundary between adjacent `grid_225` (`15x15`) cells, `gemini-decision-1` naturally splits its softmax probability mass across those neighboring cells (for example, `L13` with $p = 0.54$ and horizontally adjacent `M13` with $p = 0.41$). Although neither single cell exceeds the `0.85` fast-path threshold in isolation, their combined local mass is $0.54 + 0.41 = 0.95 \ge 0.85$.
+
+Instead of discarding split-cell hits or snapping coarsely to `L13`'s center, `jikud` runs **`interpolate_grid_225_centroid`**:
+1. Collects the top cell $c_0$ and any 8-connected neighboring `grid_225` cells $\mathcal{N}(c_0)$ whose individual probability $p_c \ge 0.05$.
+2. Evaluates the local cluster probability sum $P_{\text{cluster}} = \sum_{c \in \mathcal{N}(c_0)} p_c$ against the fast-path confidence gate (`>= 0.85`).
+3. Computes the continuous probability-weighted sub-grid centroid:
+   $$(x_{\text{click}}, y_{\text{click}}) = \frac{\sum_{c \in \mathcal{N}(c_0)} p_c \cdot (x_c, y_c)}{\sum_{c \in \mathcal{N}(c_0)} p_c}$$
+4. Feeds $(x_{\text{click}}, y_{\text{click}})$ directly into `Phodopus` **`MinimumJerk`** pointer trajectory generation, achieving sub-cell targeting accuracy on the exact boundary between `L13` and `M13`.
+
+#### `DecisionCompiler`: Multi-Step Shortcut & Action Compilation Strategies
+
+A single `choice` question's probability ranking **cannot** represent a chronological multi-step key or action sequence for three mathematical reasons:
+1. **Softmax Mutual-Exclusion Dilution ($\sum P_i = 1.0$)**: If a 3-step shortcut sequence (`Ctrl+F -> Enter -> Escape`) is required, a single `choice` question forces the three required actions to compete for `1.0` total probability (~`0.33` each), falsely failing the confidence gate.
+2. **Confidence $\neq$ Temporal Order**: Observing $P(\text{Enter}) = 0.55 > P(\text{Ctrl+F}) = 0.40$ means the model is slightly more certain about `Enter`, not that `Enter` should be pressed before `Ctrl+F`.
+3. **Inability to Express Repeated Keys**: A set of unique `choice` option keys cannot represent sequences with duplicate operations such as `Down -> Down -> Enter`.
+
+To compile multi-step keyboard and GUI micro-transactions inside a **single `POST /v1beta/decisions` request (`0` output tokens)**, `jikud`'s `DecisionCompiler` implements three explicit compilation strategies:
+
+* **Strategy A (`TimeSlotMacro`) — Fixed-Horizon Ordered Sequence with Repeat Support**:
+  Packs $K$ parallel `choice` questions (`slot_1`, `slot_2`, ..., `slot_K`) into one request. Every slot shares the candidate shortcut `criteria` map plus a `"STOP_DONE"` (`"NONE_OR_OTHER"`) termination sentinel. `DecisionCompiler` reads `slot_1..=slot_K` in index order and truncates the macro at the first slot where `choice == "STOP_DONE"` or slot confidence `< threshold`. Because each time slot is an independent `choice` distribution, `TimeSlotMacro` natively expresses repeated keys (e.g., `slot_1 = "Down"`, `slot_2 = "Down"`, `slot_3 = "Enter"`, `slot_4 = "STOP_DONE"`).
+* **Strategy B (`BernoulliExpectedStep`) — Set-of-Actions Activation + Expected Step Ordering**:
+  When selecting and ordering a subset from $M$ distinct candidate actions without repeats, `DecisionCompiler` emits two questions per candidate `<key>`:
+  1. An independent binary `noul` activation gate `use_<key>` (*"Should `<key>` be executed in this transaction?"*), and
+  2. A step-index `choice`/`score` distribution `order_<key>` over positions `1..=K`.
+  `DecisionCompiler` retains all candidates with $P(\text{use\_key}) \ge 0.80$ and sorts them by ascending expected step index:
+  $$E[\text{step}_{\text{key}}] = \sum_{k=1}^{K} k \cdot P(\text{Step}_k)$$
+* **Strategy C (`ThresholdProbe`) — Order-Independent Heuristic Fallback Probing**:
+  For exploratory fallback actions where strict chronological order does not matter (e.g., attempting to dismiss an unfamiliar modal popup via `Escape`, `q`, or `Space`), `DecisionCompiler` sorts candidates by descending probability, truncates all candidates below `threshold` (`0.15`), and compiles a guarded `Phodopus` probe loop that executes each surviving candidate sequentially with an intermediate `wait_settle` check that exits as soon as window topology changes.
+
+#### Five Core Scenarios in `jikud`
+
+1. **Single-Frame GUI System-1 Control**:
+   In a single HTTP call over the active workspace's `memfd` frame (with `grid_225` overlay), `jikud` packs:
+   * `q_in_scope` (`noul` Yes/No): Is the target UI element currently visible and interactive on screen?
+   * `q_grid_target` (`choice` over `225` `grid_225` cells + `"not_visible"`): Which cell contains the interaction target?
+   * `q_action_type` (`choice`): `click_left`, `click_right`, `double_click`, `scroll_down`, `scroll_up`, `run_macro`, `wait_settle`, or `NONE_OR_OTHER`.
+   * `q_macro_pick` (`choice` over approved `~/.config/jiku/skills/*.lua` + `"NONE_OR_OTHER"`): Which deterministic Lua macro matches the current UI state?
+   * `q_safety_gate` (`15` parallel `noul` Yes/No checklist rules): Screens simultaneously for visual prompt injection banners, 2FA/OTP input fields, payment/checkout confirmation buttons, destructive file deletion modals, and credential elevation prompts.
+2. **Confidence-Gated Control Plane Router**:
+   * **Safety Preemption**: If any of the 15 `q_safety_gate` `noul` rules fires above its risk threshold, `jikud` immediately halts autonomous execution, emits `security.verification_needed`, and yields to human **`Mod + G`** preemption or a critical D-Bus notification (`org.freedesktop.Notifications` -> `swaync`).
+   * **System-1 Fast Path (`>= 0.85`)**: When `q_in_scope` is positive (`P(yes) >= 0.85`) and the top `q_action_type` / `q_grid_target` or `q_macro_pick` probability is **`>= 0.85`**, `jikud` dispatches the `Epoch`-fenced action directly to `koma-agent.sock`—completing the perception-to-action loop in `< 250 ms` without calling a generative model.
+   * **System-2 Fallback (`< 0.85`)**: When confidence falls below `0.85`, `q_in_scope` is negative, or the step requires open-ended text entry, `jikud` escalates the frame and `DecisionsDriver` probability diagnostics to `TurnModelDriver` (`planner`).
+3. **Live Stream / VTuber Real-Time Chat (`danmaku`) Filtering & Live2D/VRM 255-Expression/Motion Selection**:
+   During live companion sessions, `DecisionsDriver` evaluates incoming chat message batches in parallel for prompt-injection/toxicity filtering and engagement priority while selecting from up to **`255` discrete Live2D/VRM facial expressions and motion clips**, publishing the selected cue directly to `jiku.sock` (`avatar.cue`).
+4. **Native Multimodal `~/JikuBox/` Batch Classification, Tagging & Screening**:
+   Powers `jiku box classify` over files dropped into `~/JikuBox/`—including resume screening against multi-criteria checklists, competition submission grading, multimodal image/audio/video tagging, and two-stage recommendation (stage-1 binary `noul` coarse filtering followed by stage-2 fine rubric scoring)—evaluating up to `1,000` structured questions per artifact in a single zero-decode pass.
+5. **L2 SQLite FTS5 Trajectory & Skill Reranking**:
+   Before `TurnModelDriver` planning, `jikud` queries `state.db` FTS5 for top-`K` candidate historical episodes and `skills/*.lua` descriptors, then packs all `K` candidates into a single `DecisionsDriver` request (`noul` relevance + `score` applicability) to rerank them with calibrated probabilities in `< 200 ms`.
+
+#### Closed-Set Decision (`DecisionsDriver`) vs. Open-Ended Generative (`TurnModelDriver`) Boundary
+
+| Dimension | `DecisionsDriver` (`gemini-decision-1`) | `TurnModelDriver` (`reqwest` + HTTP/2 SSE) |
+| :--- | :--- | :--- |
+| **Inference Mechanism** | Single-prefill zero-decode pass (`0` output tokens generated). | Autoregressive token-by-token decoding streamed over HTTP/2 SSE. |
+| **Output Space** | Closed-set calibrated probability distributions: `noul` (`Yes/No`), `choice` (`2..=255` options), `score` (`2..=255` levels). | Open-ended text generation, multi-step reasoning plans, free-form keyboard strings, and Lua macro code. |
+| **Parallelism & Latency** | `1..=1000` questions evaluated in parallel over shared media in flat `~150–250 ms`. | Sequential token generation (`~800 ms–5 s+`), scaling linearly with output token count. |
+| **Primary `jikud` Workloads** | System-1 `grid_225` target selection, `>= 0.85` confidence router, 15-rule visual safety gate, Live2D 255-cue selection, `~/JikuBox/` batch triage, L2 FTS5 reranking. | System-2 `planner` recovery when confidence `< 0.85`, `Zero-IME` `type_text` payload generation, and candidate `staged_skills/*.lua` synthesis. |
+| **Token & Cost Profile** | Input tokens only (`$0.10 / 1M` input tokens on Paid Tier, `$0` output tokens). | Input tokens + billed reasoning and output tokens across provider tiers. |
+
+#### Four Mandatory Engineering Guardrails for `DecisionsDriver`
+
+1. **Mandatory `"NONE_OR_OTHER"` / `"not_visible"` Fallback + Paired `Yes/No` (`q_in_scope`) Gate**:
+   Because every `Choice` question softmax-normalizes its option probabilities to sum to **`1.0`**, omitting a fallback option forces out-of-distribution inputs into high-confidence false positives. Every `Choice` question in `jikud` **must** include an explicit `"NONE_OR_OTHER"` or `"not_visible"` option and be gated by a paired binary `Yes/No` (`noul`) question (`q_in_scope`).
+2. **Literal Model ID `"gemini-decision-1"` & Request-Level Question Batching**:
+   Callers must pass the exact literal string `"gemini-decision-1"` (no `-latest` alias exists). The `/v1beta/decisions` endpoint supports neither Context Caching nor the asynchronous Batch API; instead, `jikud` amortizes input token cost by packing up to **`1,000` questions** into a single request's `questions` map over the shared multimodal payload.
+3. **Decompose Coarse `Score` Rubrics into `5..=10` Binary `Yes/No` (`noul`) Checklists**:
+   Whenever a grading or safety rubric can be expressed as verifiable criteria, `jikud` decomposes coarse `Score` questions into **`5..=10` orthogonal binary `Yes/No` (`noul`) checklist questions** and computes the weighted score in Rust/Lua, yielding substantially tighter calibration and per-criterion auditability in `audit.jsonl`.
+4. **Media Transport Constraints & AI Studio Free vs. Paid Tier Privacy Boundary**:
+   * **Media Encoding**: Multimodal inputs must be supplied either as inline bytes (`image/webp` or `image/png` encoded in-memory directly from `Koma`'s read-only `SCM_RIGHTS` `memfd`) or via the Google Files API. `gs://` Cloud Storage URIs and YouTube URLs are rejected by `/v1beta/decisions`, and per-question `instructions` accept **plain text only**.
+   * **Quota & Data-Logging Boundary**: AI Studio **Free Tier** provides `~200 RPM` / `10,000 RPD` / `50,000 TPM` (where Google logs submitted prompts and media for model improvement), whereas **Paid Tier** bills `$0.10 / 1M` input tokens (`$0` output) with zero training retention. Regardless of tier, `Koma`'s Ring 0 **`#000000` Protected Surface Blackout** (`block_out_from = "agent_capture" | "all"`) zeroes out password managers, Polkit prompts, and secret windows in the compositor's offscreen FBO before `memfd` export—ensuring sensitive pixels never reach `jikud` or Google AI Studio even on the Free Tier.
+
+---
+
+### 5.2 `TurnModelDriver` (`reqwest` + HTTP/2 SSE)
+
+When a task requires open-ended generation—or when `DecisionsDriver` routes a step to System-2 (`confidence < 0.85`)—`jikud` invokes `TurnModelDriver` over multiplexed HTTP/2 Server-Sent Events (`reqwest`):
+
+* **Core Responsibilities**:
+  1. **Multi-Step `planner` & Error Recovery**: Decomposes complex cross-application goals, inspects L1 `app_id` quirks and `DecisionsDriver`-reranked L2 FTS5 episodes, and recovers from unexpected UI modal states.
+  2. **Open-Ended Text Entry (`Zero-IME` `type_text`)**: Generates arbitrary natural-language replies, search queries, file names, and form payloads injected directly via `Koma`'s `zwp_text_input_v3` / `VirtualSeat` pipeline.
+  3. **Candidate `staged_skills/*.lua` Synthesis**: Synthesizes parameterized `Phodopus` Lua macros from verified multi-step trajectories, strips unsafe tokens, and writes them to `~/.local/state/jiku/staged_skills/` for human `jiku skills approve` promotion.
+* **Heterogeneous Provider Support**: Connects to **Google AI Studio**, **Vertex AI** (via Application Default Credentials / ADC), **Anthropic** (`Messages` API with prefix prompt caching), and **OpenAI-compatible** endpoints (`OpenAI`, `DeepSeek`, `OpenRouter`, `vLLM`, `llama.cpp`, `Ollama`), mapping heterogeneous visual grounding outputs (`0..1000` bounding boxes, normalized points, or `9-anchor` window offsets) through a unified **`ActionNormalizer`**.
+
+---
+
+### 5.3 `LiveSessionDriver` (`tokio-tungstenite` Stateful Full-Duplex WebSocket for `jiku live`)
+
+#### Why Real-Time Companion / AI VTuber / Gaming Mode Requires Stateful Full-Duplex WebSocket
+
+Real-time multimodal companion workflows (`jiku live`—spanning interactive desktop pair-piloting, Neuro-sama-style AI VTuber streaming, and live gaming co-pilots) cannot be built on half-duplex HTTP+SSE (`TurnModelDriver`):
+
+1. **Continuous Server-Side KV-Cache State**: Half-duplex HTTP must re-transmit conversation and visual history on every turn; a **Stateful Full-Duplex WebSocket** maintains a persistent server-side KV cache across continuous audio/video streams.
+2. **True Bidirectional Multiplexing**: The user speaks into PipeWire (`16 kHz` PCM) while `Koma` pushes `1–2 FPS` screen damage frames and live stream chat (`danmaku`) arrives—all while the model is simultaneously streaming back `24 kHz` voice audio, lip-sync cues, and asynchronous GUI tool calls over the same socket.
+3. **Sub-100 ms Native Barge-In (Server VAD)**: When the user interrupts mid-sentence, server-side Voice Activity Detection (VAD) emits an immediate `interrupted: true` control frame over the WebSocket so local audio playback and outdated GUI actions halt immediately.
+
+`LiveSessionDriver` abstracts this stateful full-duplex pipeline across **Gemini Multimodal Live API** (`BidiGenerateContent`), **OpenAI Realtime API**, **Qwen-Omni Realtime**, and **local WebRTC/WebSocket speech-to-speech pipelines**.
+
+#### Three Concurrent Tokio Tasks Inside `LiveSessionDriver`
+
+```
+  PipeWire Mic (16kHz PCM) --+
+  Koma memfd (1-2 FPS / 0 FPS)+--> [1. Uplink Task] ========(WSS realtimeInput)========>
+  Live Chat / Danmaku Queue -+     (Context Compression + SessionResumption / GoAway)
+                                                                                       |
+  PipeWire Sink (24kHz PCM) <----- [2. Downlink Task] <=====(WSS serverContent)========+
+  jiku.sock (`avatar.cue`)  <----- (RMS/Freq Lip-Sync + Barge-In Buffer Flush)         |
+                                                                                       |
+  koma-agent.sock <--------------- [3. Action Bridge Task] <=(WSS toolCall)============+
+  (Local Epoch Fence)              (NON_BLOCKING Dispatch + INTERRUPT/WHEN_IDLE/SILENT)
+```
+
+1. **`Uplink` Task (Audio + Perceptual-Hash-Gated Vision + Session Lifecycle)**:
+   * **Audio Stream**: Captures `16 kHz`, `16-bit mono PCM` audio chunks (`20–100 ms` cadence) from PipeWire and streams them as `realtimeInput` media chunks.
+   * **Damage-Driven `1–2 FPS` Screen Stream (`0 FPS` When Static)**: Subscribes to `Koma`'s `window.damage_settled` EventRing and compares `memfd` perceptual block hashes (`Hamming distance >= threshold`). Frames are encoded and transmitted at **`1–2 FPS` only when visible screen damage occurs**, automatically dropping to **`0 FPS` when the screen is static**—saving **~80% of visual token consumption** during voice-heavy sessions.
+   * **Optional Live Chat Queue**: Multiplexes filtered viewer `danmaku` / chat turns (pre-screened by `DecisionsDriver`) into the session stream.
+   * **Unbounded Session Longevity**: Configures `contextWindowCompression` (`triggerTokens` threshold + `slidingWindow` compaction) so multi-hour sessions never overflow context limits, paired with `sessionResumption` (`SessionResumptionUpdate` token persistence + `GoAway` pre-emptive zero-downtime reconnection across the cloud provider's 10-minute WebSocket connection ceiling).
+2. **`Downlink` Task (Direct PipeWire Audio + Real-Time Lip-Sync + Instant Barge-In Flush)**:
+   * **Native `24 kHz PCM` Audio Playout**: Streams incoming `24 kHz PCM` audio chunks directly to a dedicated PipeWire virtual sink—bypassing external HTTP TTS latency when running in native speech-to-speech mode.
+   * **Real-Time RMS/Frequency Lip-Sync & Gaze Envelopes**: Computes per-frame RMS amplitude and frequency-band vowel formants from the `24 kHz` PCM stream alongside virtual pointer `(u, v)` coordinates, broadcasting low-latency `avatar.cue` packets over `jiku.sock`.
+   * **Barge-In & `Proactive Audio` Gating**: On receiving server VAD `serverContent: { interrupted: true }`, `Downlink` **immediately flushes the PipeWire playback ring buffer** and emits a zeroed lip-sync reset frame on `jiku.sock` so the avatar stops speaking within milliseconds. Supports **`Proactive Audio`** mode where the companion listens continuously without responding until directly addressed or triggered by a salient screen event.
+3. **`Action Bridge` Task (`NON_BLOCKING` Tool Dispatch + Local `Epoch` Fence)**:
+   * **Asynchronous `NON_BLOCKING` Execution**: Subscribes to model `toolCall` requests (`click`, `move_to`, `run_koma_macro`, etc.) declared with `NON_BLOCKING` behavior so the companion can continue speaking and observing while `Koma` executes GUI actions in `agent:work`.
+   * **Hardware-Grade Local `Epoch` Fence Against Cloud Cancellation Lag**: Cloud `toolCallCancellation` frames over WAN WebSockets can lag tens or hundreds of milliseconds behind a user's voice barge-in or physical **`Mod + G`** takeover. Every action dispatched by `Action Bridge` carries the local **`Epoch` fence**: if either `Downlink` detects `interrupted: true` or `Koma` increments `Epoch` on `Mod + G`, in-flight actions are rejected synchronously at the `koma-agent.sock` boundary before they can touch the workspace.
+   * **Scheduled `toolResponse` Delivery**: Returns execution outcomes back over the WebSocket tagged with explicit continuation scheduling (`INTERRUPT` for critical errors/safety blocks, `WHEN_IDLE` for normal action completion, or `SILENT` for background telemetry updates).
+
+---
+
+## 6. Detachable TUI, Notifications, TTS & Live2D / VRM Companion Bus
 
 When used directly as a standalone desktop assistant (without an external MCP host), `jikud` exposes a local control & event bus at **`$XDG_RUNTIME_DIR/jiku.sock`** (`0600`):
 
-### 5.1 Declarative Model Templates & Heterogeneous Role Routing
+### 6.1 Detachable `jiku` TUI / CLI & Asynchronous User Notifications
 
-`config.toml` separates **Provider Templates** (`openai_compatible`, `anthropic`, `google_gemini`) from **Role Assignments**:
+* **Stateless Frontend (`jiku`)**: Closing the `jiku` TUI (`ratatui`) or terminal window **never** stops `jikud`; background tasks and `jiku live` companion sessions continue inside `agent:work`, and running `jiku` (or `jiku attach`) reconnects to `jiku.sock` to stream live steps, approve staged skills, or pause/abort tasks.
+* **Proactive User Notifications**: On task completion, error, or human-verification gates (`security.verification_needed` triggered by `DecisionsDriver`'s `q_safety_gate`, e.g., 2FA / login / payment prompts), `jikud` dispatches desktop notifications via **D-Bus `org.freedesktop.Notifications`** (integrating natively with `swaync` action buttons such as *"Peek Workspace"* or *"Approve"*), plus optional webhook plugins for remote alerts.
 
-* **`planner`**: High-reasoning model decomposing multi-app goals and selecting parameterized `skills/*.lua` macros.
-* **`actor` (Decision / Computer Use Models)**: Fast visual grounding & action models—natively supporting specialized decision APIs (such as `gemini-decision-1` `grid_225` / macro selection and Gemini Computer Use `0..1000` normalized coordinates) as well as general VLMs via a unified **`ActionNormalizer`** that maps model outputs into `Koma` logical workspace coordinates or `9-anchor` window offsets.
-* **`fast_guard`**: Lightweight local or flash model verifying modal popups, error banners, and completion states.
-
-### 5.2 Detachable `jiku` TUI / CLI & Asynchronous User Notifications
-
-* **Stateless Frontend (`jiku`)**: Closing the `jiku` TUI (`ratatui`) or terminal window **never** stops `jikud`; background tasks continue inside `agent:work`, and running `jiku` (or `jiku attach`) reconnects to `jiku.sock` to stream live steps, approve staged skills, or pause/abort tasks.
-* **Proactive User Notifications**: On task completion, error, or human-verification gates (`security.verification_needed`, e.g., 2FA / login / payment prompts), `jikud` dispatches desktop notifications via **D-Bus `org.freedesktop.Notifications`** (integrating natively with `swaync` action buttons such as *"Peek Workspace"* or *"Approve"*), plus optional webhook plugins for remote alerts.
-
-### 5.3 Multi-Language (`i18n`), TTS Audio Pipeline & Live2D / VTuber Subscriber Bus
+### 6.2 Multi-Language (`i18n`), TTS Audio Pipeline & Live2D / VTuber Subscriber Bus
 
 Voice synthesis and 2D/3D avatars attach as **decoupled `jiku.sock` EventBus subscribers** so `jikud` stays lean and headless-safe:
 
-* **i18n & Pluggable `TtsProvider`**: Explicit locale configuration (`zh-CN`, `ja-JP`, `en-US`) paired with a `TtsProvider` trait supporting **VOICEVOX Engine** (`/audio_query` + `/synthesis` for natural Japanese voicebanks), local **Piper / CosyVoice**, or OpenAI-compatible `/v1/audio/speech` streamed to **PipeWire**.
-* **Live2D / VRM Companion Protocol**: `jikud` broadcasts structured `AvatarCue` events over `jiku.sock` containing:
-  1. **Semantic Emotion & Activity State** (`Idle`, `Thinking`, `Acting`, `WaitingHuman`, `Success`, `Alert`),
+* **i18n & Pluggable `TtsProvider` (Turn Mode) vs. Native PCM (`LiveSessionDriver`)**: Explicit locale configuration (`zh-CN`, `ja-JP`, `en-US`) paired with a `TtsProvider` trait supporting **VOICEVOX Engine** (`/audio_query` + `/synthesis` for natural Japanese voicebanks), local **Piper / CosyVoice**, or OpenAI-compatible `/v1/audio/speech` streamed to **PipeWire** during turn-based workflows, while `LiveSessionDriver` streams native `24 kHz PCM` directly to PipeWire.
+* **Live2D / VRM Companion Protocol (`avatar.cue`)**: `jikud` broadcasts structured `AvatarCue` events over `jiku.sock` containing:
+  1. **Semantic Emotion, Activity State & 255-Cue Selection** (`Idle`, `Thinking`, `Acting`, `WaitingHuman`, `Success`, `Alert`, plus discrete `expression_id` / `motion_id` selected by `DecisionsDriver`),
   2. **Normalized Gaze Target** `(u, v)` tracking `Jiku`'s active virtual pointer or highlighted window region, and
-  3. **Phoneme / Mora Lip-Sync Envelope** (extracted directly from VOICEVOX `AudioQuery` mora timings or RMS amplitude frames).
+  3. **Dual Lip-Sync Envelopes**: Either deterministic **Phoneme / Mora Timing Envelopes** (extracted from VOICEVOX `AudioQuery`) or real-time **RMS / Frequency-Band Envelopes** (computed by `LiveSessionDriver`'s `Downlink` task from `24 kHz PCM` audio, with instant reset on `interrupted: true`).
   A separate `wlr-layer-shell` overlay client (rendering Live2D Cubism or VRM models) can subscribe to `jiku.sock` at any time without adding a single OpenGL dependency to `jikud` or `Koma`.
