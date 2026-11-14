@@ -46,30 +46,35 @@ Unlike AI Coding Agents (`Claude Code`, `Codex`, `Copilot`, `OpenCode`) whose co
 
 ---
 
-## 3. Three-Tier AI Ecosystem: Native `Jiku` + `SKILL.md` CLI + `MCP`
+## 3. Three-Tier AI Ecosystem: Standalone `Jiku` + External Coding Agent Bridge (`SKILL.md` CLI & `MCP`)
 
-`Koma` and `Jiku` support both first-class autonomous operation and zero-friction integration with external AI Coding Agents:
+`Jiku` works out-of-the-box both as a **standalone customizable desktop agent** (powered by any user-configured cloud or local text/VLM provider in `~/.config/jiku/config.toml`) and as a **sub-agent / tool bridge** invoked by external AI Coding Agents (**`Claude Code`**, **`Codex`**, **`GitHub Copilot`**, **`Cursor`**, **`OpenCode`**) via **MCP (`jiku mcp`)** or **CLI + `SKILL.md` (`jiku run ...`, `komactl`)**:
 
 ```
-  [Claude Code / Codex / OpenCode]          [Desktop MCP Clients (Cursor, etc.)]
-         |                  \                            |
-   (Fast Inner Loop:         \ (Sub-task Delegation:     | (Standard stdio MCP:
-    SKILL.md + komactl)       \ `jiku run "..."`)        |  `jiku mcp` / `koma-mcp`)
-         |                     v                         v
-         |              +---------------------------------------+
-         |              |     jikud (Native Companion Agent)    |
-         |              |  EventRing Push + ROI Hash + Phodopus |
-         |              +---------------------------------------+
-         \                                  |
-          \---> $XDG_RUNTIME_DIR/koma/<sig>/koma-agent.sock <---/
-                      (SCM_RIGHTS memfd + Epoch Fence)
+  [Claude Code / Codex / GitHub Copilot / OpenCode]   [MCP Clients (Cursor, Claude Code, etc.)]
+         |                       \                                |
+   (Fast Inner Loop:              \ (Sub-task Delegation:         | (Standard stdio MCP:
+    SKILL.md + komactl)            \ `jiku run "..."`)            |  `jiku mcp` / `koma-mcp`)
+         |                          v                             v
+         |                   +---------------------------------------+
+         |                   |     jikud (Native Companion Agent)    |
+         |                   |  EventRing Push + ROI Hash + Phodopus |
+         |                   +---------------------------------------+
+         \                                       |
+          \--------> $XDG_RUNTIME_DIR/koma/<sig>/koma-agent.sock <----/
+                            (SCM_RIGHTS memfd + Epoch Fence)
 ```
 
+* **Standalone Customizable Desktop Agent**:
+  Users can run `jikud` + `jiku` directly as an autonomous desktop operator backed by their preferred primary text/multimodal LLM (OpenAI GPT, Anthropic Claude, Google Gemini, OpenRouter, or self-hosted local models via `vLLM`, `llama.cpp`, or `Ollama`).
+* **External Coding Agent Bridge (`Claude Code`, `Codex`, `GitHub Copilot`, `Cursor`, `OpenCode`)**:
+  External coding agents own source code editing and terminal builds, integrating with `Jiku` and `Koma` through two complementary surfaces:
+  1. **CLI + `SKILL.md` (`jiku run ...`, `komactl`)**: Coding agents read the bundled `SKILL.md` to issue fast deterministic window queries via `komactl` or delegate multi-step visual GUI verification (`jiku run --workspace agent:work "verify login modal flow"`) to `jikud` without polluting the coding model's context window with dozens of raw screenshots.
+  2. **MCP Server (`jiku mcp` / `jiku mcp --stateless`)**: Exposes `Jiku`'s GUI task execution, `app_id` UI quirks, and approved deterministic Lua skills as standard Model Context Protocol tools over `stdio` for `Claude Code`, `Codex`, `GitHub Copilot`, `Cursor`, and `OpenCode`.
 * **Native `jikud` Advantages over Generic Computer Use**:
   1. **Push-Driven `EventRing`**: Subscribes to `window.topology`, `window.damage_settled`, `workspace.lease`, and `security.alerts`—eliminating blind screenshot polling loops.
   2. **Batched `Phodopus` Micro-Transactions**: Compiles multi-step GUI sequences (`focus -> move_to -> click -> Zero-IME type_text -> wait_settle`) into a single `Epoch`-fenced Lua coroutine executed inside `Koma` at microsecond latency.
   3. **Scene-Tree + Zero-Copy `memfd` Fusion**: Combines `mmap`-read `memfd` pixel tiles (skipping VLM calls on unchanged perceptual hashes) with exact compositor window coordinates (`WindowId`, `app_id`, logical `rect`).
-* **Orthogonal Division with Coding Agents**: Coding Agents (`Claude Code`, `Codex`) own source code and terminal builds, using a compact `SKILL.md` + `komactl` for fast window queries or delegating end-to-end visual verification (`jiku run "verify login modal flow in agent:work"`) without polluting the coding model's context window with dozens of raw screenshots; pure GUI clients attach via `jiku mcp`.
 
 ---
 
@@ -107,13 +112,17 @@ pub trait ContextProvider: Send + Sync {
 
 ---
 
-## 5. Three-Driver Model Architecture in `jikud`
+## 5. Primary Text/VLM Foundation & Three-Driver Model Architecture in `jikud`
 
-Rather than forcing every desktop interaction through a single autoregressive chat endpoint, `jikud` partitions inference across **three specialized model drivers** matched to the latency, output cardinality, and duplex requirements of each workload:
+### 5.0 Primary Text/Multimodal Model First (`[roles.planner]`) & Progressive Optional Drivers
 
-1. **`DecisionsDriver`**: Zero-decode single-prefill structured probability engine (`gemini-decision-1` via Google AI Studio `POST /v1beta/decisions`, authenticated via `GEMINI_API_KEY`).
-2. **`TurnModelDriver`**: Autoregressive turn-based HTTP/2 SSE driver (`reqwest`) for open-ended planning, free-form text input, and Lua skill synthesis.
-3. **`LiveSessionDriver`**: Stateful full-duplex WebSocket driver (`tokio-tungstenite` / `BidiGenerateContent`) for real-time voice, vision, and low-latency action multiplexing (`jiku live`).
+The **Primary Text/Multimodal Model** (`[roles.planner]` backed by `TurnModelDriver`—supporting OpenAI GPT, Anthropic Claude, Google Gemini, OpenRouter, or self-hosted local models via `vLLM` / `llama.cpp` / `Ollama`) is the **foundational model of `Jiku`**. Configuring only a primary text/VLM model is sufficient to run every core `Jiku` workflow out of the box without errors.
+
+Rather than forcing every desktop interaction through a single endpoint when optional accelerators are present, `jikud` partitions inference across **three specialized model drivers** matched to the latency, output cardinality, and duplex requirements of each workload:
+
+1. **`TurnModelDriver` (Foundational Primary Text/VLM Driver)**: Autoregressive turn-based HTTP/2 SSE driver (`reqwest`) powering `[roles.planner]` for open-ended planning, free-form text input, Lua skill synthesis, and automatic **`EmulatedStructuredTextModel`** fallback when no dedicated decision model is configured.
+2. **`DecisionsDriver` / `DecisionBackend` (Optional Zero-Decode Acceleration + Zero-Error Emulated Fallback)**: Evaluates closed-set probability distributions (`noul`, `choice`, `score`) via **`DecisionExecutionMode::NativeDecisionsApi`** when a dedicated Decision Model (`gemini-decision-1` via Google AI Studio `POST /v1beta/decisions`, authenticated via `GEMINI_API_KEY`) is configured, or automatically falls back to **`DecisionExecutionMode::EmulatedStructuredTextModel`** on the primary text/VLM model without ever erroring out.
+3. **`LiveSessionDriver` (Optional Progressive Module, Disabled by Default)**: Stateful full-duplex WebSocket driver (`tokio-tungstenite` / `BidiGenerateContent`) for real-time voice, vision, and low-latency action multiplexing (`jiku live`), enabled only when explicitly opted in via `config.toml`.
 
 ```
                       +------------------------------------------------+
@@ -140,11 +149,23 @@ Rather than forcing every desktop interaction through a single autoregressive ch
 
 ---
 
-### 5.1 `DecisionsDriver` (`gemini-decision-1` via `POST /v1beta/decisions`)
+### 5.1 `DecisionsDriver` & `DecisionBackend` (`DecisionExecutionMode`: `NativeDecisionsApi` + `EmulatedStructuredTextModel` Fallback)
 
-`DecisionsDriver` targets Google AI Studio's purpose-built decision endpoint (`POST https://generativelanguage.googleapis.com/v1beta/decisions`, authenticated with `GEMINI_API_KEY` and literal model ID `"gemini-decision-1"`).
+`DecisionBackend` provides a unified closed-set decision engine supporting two execution modes (`DecisionExecutionMode`):
 
-#### Zero-Decode Single-Prefill Mechanism & Wire JSON Contract
+1. **`DecisionExecutionMode::NativeDecisionsApi` (Optional Dedicated Decision Model Acceleration)**:
+   When a dedicated Decision Model (`gemini-decision-1` via Google AI Studio's `POST https://generativelanguage.googleapis.com/v1beta/decisions`, authenticated with `GEMINI_API_KEY`) is configured, `Jiku` uses **`NativeDecisionsApi`** (`0` output tokens, single prefill pass) for closed-set tasks where decision models excel:
+   * GUI `grid_225` targeting and sub-grid centroid interpolation (`interpolate_grid_225_centroid`),
+   * `DecisionCompiler` multi-step shortcut sequences (`TimeSlotMacro`, `BernoulliExpectedStep`, `ThresholdProbe`),
+   * 15-rule parallel visual safety gates (`q_safety_gate`),
+   * `~/JikuBox/` multimodal tagging, screening, and rubric grading, and
+   * L2 SQLite FTS5 trajectory and skill reranking.
+2. **`DecisionExecutionMode::EmulatedStructuredTextModel` (Zero-Error Automatic Fallback to Primary Text/VLM Model)**:
+   When **no** dedicated Decision Model is configured (or when the user assigns a general text/VLM model such as OpenAI GPT, Anthropic Claude, Google Gemini, OpenRouter, or self-hosted `vLLM` / `llama.cpp` / `Ollama` to the decision role), **`Jiku` never errors out**. Instead, `DecisionBackend` automatically falls back to **`EmulatedStructuredTextModel`**:
+   * Invokes **`synthesize_emulated_decision_prompt`** + strict JSON Schema constraints (`response_format`) on the primary text/VLM model (`[roles.planner]` or the configured general model) to output the exact same `{"answers": { ... }}` structure (`noul`, `choice`, and `score` probabilities and confidence).
+   * Downstream `DecisionCompiler` logic (`TimeSlotMacro`, `BernoulliExpectedStep`, `ThresholdProbe`), `interpolate_grid_225_centroid`, and confidence-router logic run **unchanged** across both `NativeDecisionsApi` and `EmulatedStructuredTextModel`.
+
+#### Zero-Decode Single-Prefill Mechanism & Wire JSON Contract (`NativeDecisionsApi`)
 
 Unlike standard generative LLMs that decode output tokens autoregressively one token at a time, `gemini-decision-1` performs **Single-Prefill Zero-Decode Evaluation**:
 
@@ -380,11 +401,13 @@ When used directly as a standalone desktop assistant (without an external MCP ho
 * **Stateless Frontend (`jiku`)**: Closing the `jiku` TUI (`ratatui`) or terminal window **never** stops `jikud`; background tasks and `jiku live` companion sessions continue inside `agent:work`, and running `jiku` (or `jiku attach`) reconnects to `jiku.sock` to stream live steps, approve staged skills, or pause/abort tasks.
 * **Proactive User Notifications**: On task completion, error, or human-verification gates (`security.verification_needed` triggered by `DecisionsDriver`'s `q_safety_gate`, e.g., 2FA / login / payment prompts), `jikud` dispatches desktop notifications via **D-Bus `org.freedesktop.Notifications`** (integrating natively with `swaync` action buttons such as *"Peek Workspace"* or *"Approve"*), plus optional webhook plugins for remote alerts.
 
-### 6.2 Multi-Language (`i18n`), TTS Audio Pipeline & Live2D / VTuber Subscriber Bus
+### 6.2 Progressive Modular Roadmap: Optional TTS (`jiku-tts`), Live Voice (`jiku live`) & Live2D / VRM Subscriber Bus
 
-Voice synthesis and 2D/3D avatars attach as **decoupled `jiku.sock` EventBus subscribers** so `jikud` stays lean and headless-safe:
+> **Progressive Modular Roadmap (Disabled by Default)**: Voice synthesis (`jiku-tts`), real-time voice/live streaming (`jiku live`), and Live2D/VRM avatar subscribers are **decoupled optional modules** that are added progressively and remain **disabled by default** unless explicitly enabled in `config.toml` (`[tts] enabled = true`, `[roles.live_companion] enabled = true`, `[avatar] emit_cues = true`). Core desktop orchestration, `[roles.planner]` + `DecisionBackend` (`NativeDecisionsApi` / `EmulatedStructuredTextModel`), and external coding agent integration (`jiku mcp`, `jiku run`, `komactl`) operate with zero audio or avatar dependencies.
 
-* **i18n & Pluggable `TtsProvider` (Turn Mode) vs. Native PCM (`LiveSessionDriver`)**: Explicit locale configuration (`zh-CN`, `ja-JP`, `en-US`) paired with a `TtsProvider` trait supporting **VOICEVOX Engine** (`/audio_query` + `/synthesis` for natural Japanese voicebanks), local **Piper / CosyVoice**, or OpenAI-compatible `/v1/audio/speech` streamed to **PipeWire** during turn-based workflows, while `LiveSessionDriver` streams native `24 kHz PCM` directly to PipeWire.
+When explicitly enabled in `config.toml`, voice synthesis and 2D/3D avatars attach as **decoupled `jiku.sock` EventBus subscribers** so `jikud` stays lean and headless-safe:
+
+* **i18n & Pluggable `TtsProvider` (`jiku-tts` in Turn Mode) vs. Native PCM (`LiveSessionDriver`)**: Explicit locale configuration (`zh-CN`, `ja-JP`, `en-US`) paired with a `TtsProvider` trait supporting **VOICEVOX Engine** (`/audio_query` + `/synthesis` for natural Japanese voicebanks), local **Piper / CosyVoice**, or OpenAI-compatible `/v1/audio/speech` streamed to **PipeWire** during turn-based workflows, while `LiveSessionDriver` streams native `24 kHz PCM` directly to PipeWire.
 * **Live2D / VRM Companion Protocol (`avatar.cue`)**: `jikud` broadcasts structured `AvatarCue` events over `jiku.sock` containing:
   1. **Semantic Emotion, Activity State & 255-Cue Selection** (`Idle`, `Thinking`, `Acting`, `WaitingHuman`, `Success`, `Alert`, plus discrete `expression_id` / `motion_id` selected by `DecisionsDriver`),
   2. **Normalized Gaze Target** `(u, v)` tracking `Jiku`'s active virtual pointer or highlighted window region, and

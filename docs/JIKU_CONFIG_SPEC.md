@@ -42,40 +42,49 @@
 | `koma.default_overlay` | `string` | `"grid_225"` | Capture overlay requested on `capture.frame` (`"none"`, `"grid_225"`). |
 | `koma.perceptual_hash_threshold` | `integer` | `4` | Hamming distance threshold below which unchanged `memfd` tiles skip VLM re-inference and `LiveSessionDriver` drops screen uplink to `0 FPS`. |
 
-### 2.2 `[providers.<id>]` Templates & Three-Driver `[roles]` Routing
+### 2.2 `[providers.<id>]` Templates, Foundational `[roles.planner]` & External Agent Integration
 
-Supported provider `kind` templates across `jikud`'s Three-Driver architecture:
-* `"google_gemini"` — Google AI Studio (`GEMINI_API_KEY`) and Vertex AI ADC supporting `DecisionsDriver` (`POST /v1beta/decisions` with literal model ID `"gemini-decision-1"`), `TurnModelDriver` (`reqwest` HTTP/2 SSE + Gemini Computer Use `0..1000` coordinates), and `LiveSessionDriver` (`BidiGenerateContent` stateful full-duplex WebSocket).
-* `"openai_compatible"` — Covers `TurnModelDriver` (`/v1/chat/completions` across OpenAI, DeepSeek, OpenRouter, vLLM, `llama.cpp`, and Ollama) and `LiveSessionDriver` (OpenAI Realtime API, Qwen-Omni Realtime, and local WebRTC/WebSocket speech-to-speech endpoints).
-* `"anthropic"` — Native Anthropic `Messages` API (`TurnModelDriver` HTTP/2 SSE) with prefix prompt caching and Computer Use coordinate normalization.
+`Jiku` works out-of-the-box both as a **standalone customizable desktop agent** (configured with any cloud or local LLM provider in `config.toml`) and as a **sub-agent / tool bridge** invoked by external AI coding agents (**`Claude Code`**, **`Codex`**, **`GitHub Copilot`**, **`Cursor`**, **`OpenCode`**) via **MCP (`jiku mcp`)** or **CLI + `SKILL.md` (`jiku run ...`, `komactl`)**.
 
-Turn-based role assignments under `[roles]`:
-* `planner` (`TurnModelDriver`) — High-level task decomposition, System-2 fallback recovery when `decision_router` confidence `< 0.85`, free-form `type_text` generation, and candidate `staged_skills/*.lua` synthesis.
-* `actor` (`DecisionsDriver` / `TurnModelDriver`) — Per-step visual grounding, `grid_225` cell selection, or `0..1000` coordinate emission.
-* `fast_guard` (`DecisionsDriver` / `TurnModelDriver`) — Low-latency modal dialog detection and post-action verification.
+Supported provider `kind` templates across `jikud`'s architecture:
+* `"google_gemini"` — Google AI Studio (`GEMINI_API_KEY`) and Vertex AI ADC supporting `DecisionsDriver` (`POST /v1beta/decisions` with literal model ID `"gemini-decision-1"`), `TurnModelDriver` (`reqwest` HTTP/2 SSE + Gemini Computer Use `0..1000` coordinates), and optional `LiveSessionDriver` (`BidiGenerateContent` stateful full-duplex WebSocket).
+* `"openai_compatible"` — Covers `TurnModelDriver` (`/v1/chat/completions` across OpenAI GPT, DeepSeek, OpenRouter, and self-hosted local models via `vLLM`, `llama.cpp`, and `Ollama`), automatic `EmulatedStructuredTextModel` decision fallback via JSON Schema `response_format`, and optional `LiveSessionDriver` (OpenAI Realtime API, Qwen-Omni Realtime, and local WebRTC/WebSocket speech-to-speech endpoints).
+* `"anthropic"` — Native Anthropic `Messages` API (`TurnModelDriver` HTTP/2 SSE for Claude models) with prefix prompt caching, Computer Use coordinate normalization, and `EmulatedStructuredTextModel` decision fallback.
 
-### 2.3 `[roles.decision_router]` (`DecisionsDriver` Zero-Decode Control Plane)
+Role assignments under `[roles]`:
+* **`[roles.planner]` (Foundational Primary Text/Multimodal Model — Required)** — The primary text/VLM model (OpenAI GPT, Anthropic Claude, Google Gemini, OpenRouter, or self-hosted local models via `vLLM` / `llama.cpp` / `Ollama`) is the **foundational model of `Jiku`**. It handles high-level task decomposition, System-2 fallback recovery when `decision_router` confidence `< 0.85`, free-form `type_text` generation, candidate `staged_skills/*.lua` synthesis, and serves as the automatic zero-error **`EmulatedStructuredTextModel`** host whenever no dedicated Decision Model is configured.
+* **`[roles.decision_router]` (`DecisionBackend`: Optional `NativeDecisionsApi` Acceleration + Automatic `EmulatedStructuredTextModel` Fallback)** — Evaluates closed-set tasks (GUI `grid_225` targeting, `DecisionCompiler` shortcut sequences, 15-rule safety gates, `~/JikuBox/` multimodal tagging/grading, and FTS5 reranking).
+* **`[roles.actor]`** (`DecisionsDriver` / `TurnModelDriver`) — Per-step visual grounding, `grid_225` cell selection, or `0..1000` coordinate emission.
+* **`[roles.fast_guard]`** (`DecisionsDriver` / `TurnModelDriver`) — Low-latency modal dialog detection and post-action verification.
 
-Configures the `gemini-decision-1` single-prefill zero-decode router (`POST /v1beta/decisions` via `GEMINI_API_KEY`) used for System-1 GUI control, 15-rule visual safety gating, Live2D 255-cue selection, and L2 FTS5 trajectory reranking:
+### 2.3 `[roles.decision_router]` (`DecisionBackend` & `DecisionExecutionMode`)
+
+Configures `DecisionBackend` for closed-set evaluation (System-1 GUI `grid_225` targeting, `DecisionCompiler` shortcut sequences, 15-rule visual safety gating, `~/JikuBox/` multimodal tagging/grading, Live2D 255-cue selection, and L2 FTS5 trajectory reranking).
+
+`DecisionBackend` automatically selects its **`DecisionExecutionMode`** based on the configured model and **never errors out** if a dedicated decision model is absent:
+1. **`DecisionExecutionMode::NativeDecisionsApi`**: Selected when `model = "gemini-decision-1"` (`POST /v1beta/decisions` via `GEMINI_API_KEY`). Executes in a single prefill pass with **`0` output tokens** for closed-set tasks where decision models excel.
+2. **`DecisionExecutionMode::EmulatedStructuredTextModel` (Zero-Error Automatic Fallback)**: Selected automatically when **no** dedicated Decision Model is configured (or when the user assigns a general text/VLM model to `[roles.decision_router]`). `Jiku` invokes **`synthesize_emulated_decision_prompt`** + strict JSON Schema constraints (`response_format`) on the primary text/VLM model (`[roles.planner]` or the configured general model) to output the exact same `{"answers": { ... }}` structure (`noul`, `choice`, and `score` probabilities and confidence). Downstream `DecisionCompiler` logic (`TimeSlotMacro`, `BernoulliExpectedStep`, `ThresholdProbe`) and `interpolate_grid_225_centroid` run **unchanged** across both modes.
 
 | Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `provider` | `string` | `"google_ai_studio"` | Provider reference using `GEMINI_API_KEY` against `POST /v1beta/decisions`. |
-| `model` | `string` | `"gemini-decision-1"` | **Must** be the exact literal `"gemini-decision-1"` (no `-latest` alias). |
+| `provider` | `string` | `"google_ai_studio"` | Provider reference (if omitted or set to a general text/VLM provider, automatically runs `EmulatedStructuredTextModel` on `[roles.planner]`). |
+| `model` | `string` | `"gemini-decision-1"` | Literal `"gemini-decision-1"` enables `NativeDecisionsApi` (`0` output tokens); any general text/VLM model (or omitting `[roles.decision_router]`) automatically selects `EmulatedStructuredTextModel` without error. |
+| `execution_mode` | `string` | `"auto"` | `"auto"` (`NativeDecisionsApi` when `model == "gemini-decision-1"`, otherwise `EmulatedStructuredTextModel`), `"native_decisions_api"`, or `"emulated_structured_text_model"`. |
 | `confidence_threshold` | `float` | `0.85` | Minimum probability required on `q_in_scope` and top action/target to dispatch directly to `Koma`; `< 0.85` escalates to `fallback_role`. |
-| `fallback_role` | `string` | `"planner"` | `TurnModelDriver` role invoked when confidence `< 0.85` or open-ended text generation is needed. |
-| `max_questions_per_request` | `integer` | `1000` | Maximum parallel structured questions (`1..=1000`) packed into a single prefill pass. |
-| `require_none_or_other` | `bool` | `true` | Enforces `"NONE_OR_OTHER"` / `"not_visible"` fallback option + paired `q_in_scope` (`noul`) gate on every `Choice` question. |
+| `fallback_role` | `string` | `"planner"` | Primary `TurnModelDriver` role (`[roles.planner]`) used for System-2 escalation (`< 0.85`) and automatic `EmulatedStructuredTextModel` fallback. |
+| `max_questions_per_request` | `integer` | `1000` | Maximum parallel structured questions (`1..=1000`) packed into a single evaluation pass. |
+| `require_none_or_other` | `bool` | `true` | Enforces `"NONE_OR_OTHER"` / `"not_visible"` fallback option + paired `q_in_scope` (`noul`) gate on every `Choice` question across both `NativeDecisionsApi` and `EmulatedStructuredTextModel`. |
 | `safety_gate_rules` | `integer` | `15` | Number of parallel binary `noul` safety checklist questions (prompt injection, 2FA, payment, credential dialogs) evaluated per frame. |
 | `media_mime_type` | `string` | `"image/webp"` | In-memory encoding format (`"image/webp"` or `"image/png"`) exported from `Koma`'s `memfd` (protected surfaces masked to `#000000`). |
 
-### 2.4 `[roles.live_companion]` (`LiveSessionDriver` Stateful Full-Duplex WebSocket)
+### 2.4 `[roles.live_companion]` (`LiveSessionDriver` — Optional Progressive Module, Disabled by Default)
 
-Configures `jiku live` real-time voice, vision, and `Epoch`-fenced non-blocking action sessions (`tokio-tungstenite`):
+Configures `jiku live` real-time voice, vision, and `Epoch`-fenced non-blocking action sessions (`tokio-tungstenite`). As part of `Jiku`'s **progressive modular roadmap**, real-time voice/live streaming (`jiku live`) is a decoupled optional module that remains **disabled by default** (`enabled = false`) unless explicitly enabled in `config.toml`:
 
 | Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `provider` | `string` | `"google_ai_studio"` | Provider backing the stateful full-duplex WebSocket session. |
+| `enabled` | `bool` | `false` | Explicitly enables the optional `LiveSessionDriver` module for `jiku live` (disabled by default). |
+| `provider` | `string` | `"google_ai_studio"` | Provider backing the stateful full-duplex WebSocket session when enabled. |
 | `protocol` | `string` | `"gemini_bidi"` | Wire protocol: `"gemini_bidi"` (`BidiGenerateContent`), `"openai_realtime"`, `"qwen_omni_realtime"`, or `"local_ws"`. |
 | `model` | `string` | `"gemini-2.5-flash-live"` | Multimodal live session model identifier. |
 | `audio_in_sample_rate_hz` | `integer` | `16000` | PipeWire uplink microphone capture rate (`16 kHz`, `16-bit mono PCM`, `20–100 ms` chunks). |
@@ -88,31 +97,42 @@ Configures `jiku live` real-time voice, vision, and `Epoch`-fenced non-blocking 
 | `session_resumption` | `bool` | `true` | Tracks `SessionResumptionUpdate` handles and auto-reconnects on `GoAway` across the 10-minute WebSocket ceiling. |
 | `default_tool_scheduling` | `string` | `"WHEN_IDLE"` | Default `NON_BLOCKING` `toolResponse` continuation scheduling (`"INTERRUPT"`, `"WHEN_IDLE"`, `"SILENT"`). |
 
-### 2.5 `[jikubox.triage]` (Zero-Decode Multimodal Batch Classification & Screening)
+### 2.5 `[jikubox.triage]` (Multimodal Batch Classification & Screening via `DecisionBackend`)
 
-Configures `jiku box classify` batch evaluation over `~/JikuBox/` using `DecisionsDriver`:
+Configures `jiku box classify` batch evaluation over `~/JikuBox/` using `DecisionBackend` (`NativeDecisionsApi` when `gemini-decision-1` is configured, or automatic `EmulatedStructuredTextModel` fallback on `[roles.planner]`):
 
 | Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `enabled` | `bool` | `true` | Enables zero-decode batch screening and tagging for `~/JikuBox/`. |
-| `driver` | `string` | `"decision_router"` | Routes batch evaluation through `DecisionsDriver` (`gemini-decision-1`). |
-| `max_questions_per_batch` | `integer` | `1000` | Questions packed per multimodal file (`1..=1000`, `0` output tokens). |
+| `enabled` | `bool` | `true` | Enables structured batch screening and tagging for `~/JikuBox/`. |
+| `driver` | `string` | `"decision_router"` | Routes batch evaluation through `DecisionBackend` (`NativeDecisionsApi` or `EmulatedStructuredTextModel` fallback). |
+| `max_questions_per_batch` | `integer` | `1000` | Questions packed per multimodal file (`1..=1000`; `0` output tokens under `NativeDecisionsApi`). |
 | `decompose_rubrics_to_noul` | `bool` | `true` | Automatically decomposes coarse `Score` rubrics into `5..=10` binary `Yes/No` (`noul`) checklist questions for higher calibration. |
 | `two_stage_ranking` | `bool` | `true` | Runs binary `noul` coarse screening before fine-grained rubric scoring. |
 
-### 2.6 `[memory]`, `[notify]`, `[tts]` & `[avatar]`
+### 2.6 `[memory]`, `[notify]` & Progressive Optional Modules (`[tts]`, `[avatar]`)
 
-* **`[memory]`**: `backend = "sqlite_fts5"` (default), `l0_frame_ring_size = 4`, `fts5_rerank_with_decisions = true` (reranks top-`K` FTS5 candidates via `DecisionsDriver`), `stage_new_skills = true`, optional `external_mcp_command` for external `MemoryProvider` bridging.
+* **`[memory]`**: `backend = "sqlite_fts5"` (default), `l0_frame_ring_size = 4`, `fts5_rerank_with_decisions = true` (reranks top-`K` FTS5 candidates via `DecisionBackend` using `NativeDecisionsApi` or `EmulatedStructuredTextModel`), `stage_new_skills = true`, optional `external_mcp_command` for external `MemoryProvider` bridging.
 * **`[notify]`**: `desktop_dbus = true` (`org.freedesktop.Notifications` -> `swaync`), `urgency_on_verification = "critical"`, optional `webhook_url_env`.
-* **`[tts]`**: `enabled = false | true`, `provider = "voicevox" | "piper" | "openai_speech"`, `endpoint = "http://127.0.0.1:50021"`, `speaker_id = 3`, `speak_on = ["task_completed", "verification_needed"]` (used in turn mode; bypassed in native `24 kHz PCM` `jiku live` mode).
-* **`[avatar]`**: `emit_cues = true`, `expression_palette_size = 255` — broadcasts real-time `AvatarCue` frames (emotion tag, discrete `expression_id` / `motion_id` up to `255` options, `(u, v)` virtual cursor gaze, and either VOICEVOX mora envelopes or live `24 kHz` RMS/frequency lip-sync envelopes) to any subscribed Live2D / VRM `wlr-layer-shell` companion client on `jiku.sock`.
+* **`[tts]` (`jiku-tts` — Progressive Optional Module, Disabled by Default)**: `enabled = false` (default), `provider = "voicevox" | "piper" | "openai_speech"`, `endpoint = "http://127.0.0.1:50021"`, `speaker_id = 3`, `speak_on = ["task_completed", "verification_needed"]` (decoupled optional module used in turn mode when explicitly enabled; bypassed in native `24 kHz PCM` `jiku live` mode).
+* **`[avatar]` (Live2D / VRM Subscriber Bus — Progressive Optional Module, Disabled by Default)**: `emit_cues = false` (default), `expression_palette_size = 255` — when explicitly enabled (`emit_cues = true`), broadcasts real-time `AvatarCue` frames (emotion tag, discrete `expression_id` / `motion_id` up to `255` options, `(u, v)` virtual cursor gaze, and either VOICEVOX mora envelopes or live `24 kHz` RMS/frequency lip-sync envelopes) to any subscribed Live2D / VRM `wlr-layer-shell` companion client on `jiku.sock`.
 
 ### 2.7 Example `config.toml` Snippet
 
 ```toml
+# 1. Foundational Primary Text/Multimodal Model (Required — OpenAI, Anthropic, Gemini, OpenRouter, or local vLLM/llama.cpp/Ollama)
+[roles.planner]
+provider = "openai_or_local"
+model = "gpt-5.4" # or "claude-sonnet-4-6", "gemini-2.5-pro", "qwen3-vl-32b-instruct"
+
+# 2. Optional Decision Model Acceleration (DecisionBackend)
+# - If model = "gemini-decision-1", runs DecisionExecutionMode::NativeDecisionsApi (0 output tokens, single prefill).
+# - If omitted or set to a general text/VLM model, Jiku NEVER errors out: it automatically falls back to
+#   DecisionExecutionMode::EmulatedStructuredTextModel via synthesize_emulated_decision_prompt + JSON Schema response_format
+#   returning the identical {"answers": { ... }} structure so DecisionCompiler runs unchanged.
 [roles.decision_router]
 provider = "google_ai_studio"
 model = "gemini-decision-1"
+execution_mode = "auto"
 confidence_threshold = 0.85
 fallback_role = "planner"
 max_questions_per_request = 1000
@@ -120,7 +140,22 @@ require_none_or_other = true
 safety_gate_rules = 15
 media_mime_type = "image/webp"
 
+[jikubox.triage]
+enabled = true
+driver = "decision_router"
+max_questions_per_batch = 1000
+decompose_rubrics_to_noul = true
+two_stage_ranking = true
+
+# 3. Progressive Optional Modules (Decoupled & Disabled by Default unless explicitly enabled)
+[tts]
+enabled = false
+provider = "voicevox"
+endpoint = "http://127.0.0.1:50021"
+speaker_id = 3
+
 [roles.live_companion]
+enabled = false
 provider = "google_ai_studio"
 protocol = "gemini_bidi"
 model = "gemini-2.5-flash-live"
@@ -134,44 +169,44 @@ sliding_window_tokens = 16000
 session_resumption = true
 default_tool_scheduling = "WHEN_IDLE"
 
-[jikubox.triage]
-enabled = true
-driver = "decision_router"
-max_questions_per_batch = 1000
-decompose_rubrics_to_noul = true
-two_stage_ranking = true
+[avatar]
+emit_cues = false
+expression_palette_size = 255
 ```
 
 ---
 
-## 3. `jiku` CLI & Detachable TUI Subcommands
+## 3. `jiku` CLI, Detachable TUI & External Coding Agent Bridge (`Claude Code`, `Codex`, `GitHub Copilot`, `Cursor`, `OpenCode`)
 
 ```bash
 # Launch interactive ratatui TUI attached to running jikud (closing TUI leaves jikud running)
 jiku
 
-# Submit a background GUI task from terminal or an external Coding Agent (Claude Code / Codex)
-# (Routes via DecisionsDriver >=0.85 fast-path with automatic TurnModelDriver planner fallback)
+# Submit a background GUI task from terminal or an external Coding Agent (Claude Code / Codex / GitHub Copilot / Cursor / OpenCode)
+# (Routes via DecisionBackend >=0.85 fast-path — NativeDecisionsApi or EmulatedStructuredTextModel — with automatic [roles.planner] escalation)
 jiku run --workspace agent:work "Export ~/JikuBox/draft.odt to PDF in LibreOffice"
 
-# Start or attach to a Stateful Full-Duplex WebSocket companion session (LiveSessionDriver)
-# Streams 16kHz PipeWire mic + damage-deduped 1-2 FPS (0 FPS when static) memfd frames + 24kHz audio
-jiku live --workspace agent:work --proactive-audio
+# Fast deterministic window/workspace inspection via komactl + SKILL.md for external coding agents
+komactl tree --json
 
-# Run zero-decode single-prefill batch classification, tagging & rubric screening on ~/JikuBox/
-# Packs up to 1,000 noul/choice/score questions per file via gemini-decision-1
+# Expose Jiku as an MCP server over stdio for Claude Code, Codex, GitHub Copilot, Cursor, or OpenCode
+# (--stateless disables episode history recall when the external master coding agent manages its own memory)
+jiku mcp --stateless
+
+# Run batch classification, tagging & rubric screening on ~/JikuBox/
+# (Uses NativeDecisionsApi 0-output-token pass when gemini-decision-1 is configured, or EmulatedStructuredTextModel fallback)
 jiku box classify ~/JikuBox/inbox --rubric ~/.config/jiku/triage_rubric.toml --out ~/JikuBox/triaged/report.json
 
-# Inspect live daemon status, active driver metrics, leased workspaces, and current Epoch
+# Start or attach to an optional Stateful Full-Duplex WebSocket companion session (requires [roles.live_companion] enabled = true)
+jiku live --workspace agent:work --proactive-audio
+
+# Inspect live daemon status, active DecisionExecutionMode, leased workspaces, and current Epoch
 jiku status
 
 # Review and promote a staged Lua skill into ~/.config/jiku/skills/ (runs outside jikud ro mount)
 jiku skills list
 jiku skills diff libreoffice_pdf_export
 jiku skills approve libreoffice_pdf_export
-
-# Expose Jiku as an MCP server over stdio (--stateless disables episode history for master agents)
-jiku mcp --stateless
 ```
 
 ---
