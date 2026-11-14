@@ -1,0 +1,15 @@
+[repo]
+name = "koma-docs"
+kind = "docs"
+lang = "md"
+role = "Canonical Koma and Jiku specifications and development documentation"
+owner = "koma"
+repository = "https://github.com/komawm/docs"
+docs = "https://github.com/komawm/docs/tree/main/docs"
+
+[project]
+version = "0.0.1"
+release_line = "incubation"
+
+[licensing]
+content = "MIT"
