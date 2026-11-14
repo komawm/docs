@@ -8,7 +8,7 @@ All six `komawm` repositories (`koma`, `jiku`, `koma-types`, `docs` / checkout `
 
 ## What exists and passes under Rust `1.100.0` (Edition 2024)
 
-### 1. `koma` (`28f5d9513e8d2952c1522b8d8ae729f7d5574c50`)
+### 1. `koma` (`d4ea6f3c7a0bf801ae173c1e3f89439e9201e0fb`)
 
 The `koma` workspace manifest contains nine crates: five libraries (`koma-proto`, `koma-model`, `koma-lua`, `koma-render`, `koma-seat`) and four binaries (`koma`, `komactl`, `koma-mcp`, `koma-overview`). It follows a zero-hardcoding, configurable-defaults + user-overrides architecture across `koma-model`, `koma-lua`, `koma-render`, and `koma-seat`:
 - **Configurable global & per-workspace layouts**: Headed workspaces default to `"dwindle"` (`LayoutMode::Dwindle`), configurable globally via `koma.layout("dwindle" | "scrolling" | "deck" | "bsp")` or per-workspace via `koma.workspace({ layout = ..., gaps = ... })`, with fine-grained parameters in `koma.dwindle({...})` and `koma.scrolling({...})`.
@@ -33,6 +33,10 @@ Under the pinned target toolchain **Rust `1.100.0` (Edition 2024)**, all nine cr
 ### 3. `jiku` (Three-Driver pure-data contracts, configurable defaults & scaffold tests)
 
 The `jiku` workspace (`jikud`, `jiku`, `jiku-memory`, `jiku-tts`) defines pure-data contracts, configuration schemas, wire envelopes, and unit tests for the **Three-Driver architecture** (`DecisionsDriver` / `DecisionBackend` for `gemini-decision-1` zero-decode single-prefill decisions with automatic `EmulatedStructuredTextModel` fallback on `[roles.planner]`, `TurnModelDriver` for HTTP/2 SSE planner/text/Lua synthesis turns, and optional `LiveSessionDriver` for stateful full-duplex WebSocket `BidiGenerateContent` companion sessions). All compiler and runtime parameters use configurable defaults without hardcoded constants—including `[roles.decision_router.compiler]` (`DecisionCompilerConfig`: `fast_path_confidence = 0.85`, `min_cell_prob = 0.05`, `time_slot_min_confidence = 0.75`, `bernoulli_activation_threshold = 0.80`, `probe_min_prob = 0.15`, `stop_sentinel = "stop_done"`, `fallback_token = "NONE_OR_OTHER"`), `[roles.decision_router.compiler.grid]` (`GridSpec`: `cols = 15`, `rows = 15`), and range-validated `[roles.live_companion]` rates (`audio_in_sample_rate_hz` `8000..=48000` default `16000`, `audio_out_sample_rate_hz` `8000..=48000` default `24000`, `max_screen_fps` `1..=60` default `2`)—and passes all local formatting, typecheck, Clippy, and unit test gates under Rust `1.100.0`. Prior to `v0.1.0`, `jiku` remains a library-only, non-runnable scaffold with no network I/O daemon or executable CLI binary.
+
+## `v0.0.1` development prerelease
+
+`v0.0.1` is published as GitHub prereleases of `komawm/koma` (Linux x86_64 binary archive plus `SHA256SUMS`), `komawm/jiku` (library-scaffold source archive) and `komawm/koma-types` (LuaLS definitions). Each tag-triggered `release.yml` re-runs the repository gates on the tagged revision, verifies the tag against the manifest version, and publishes through a protected `release` environment that only accepts `v*.*.*` tags. `komawm/packaging` provides the manual `cd-archlinux.yml` workflow that builds an Arch Linux review-candidate package and uploads it to the Koma prerelease once the `PRODUCT_RELEASE_TOKEN` environment secret is configured. These prereleases are development snapshots: no DRM/KMS, hardware, installation, or security acceptance is implied; see the [release plan](https://github.com/komawm/.github/blob/main/docs/releases.md).
 
 ## Boundaries that still matter
 
