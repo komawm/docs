@@ -169,7 +169,7 @@ Rather than forcing every desktop interaction through a single endpoint when opt
 
 Unlike standard generative LLMs that decode output tokens autoregressively one token at a time, `gemini-decision-1` performs **Single-Prefill Zero-Decode Evaluation**:
 
-* **`0` Output Tokens Generated**: The model runs a single forward prefill pass over one shared multimodal context (text + inline image/audio/PDF/video bytes) and evaluates **`1..=1000` parallel structured questions** simultaneously in the same request, billing `0` output tokens (`usage.output_tokens == 0`).
+* **`0` Output Tokens Generated**: The model runs a single forward prefill pass over one shared multimodal context (text + inline image/audio/PDF/video bytes) and evaluates **`1..=1000` parallel structured questions** simultaneously in the same request, billing `0` output tokens (`usage.total_output_tokens == 0`).
 * **Three Native Question Primitives**:
   1. **`noul` (`Yes/No`)**: Binary probability scalar clamped in **`[0.01, 0.99]`** for scope gates, safety checklists, and binary relevance verification.
   2. **`choice` (`2..=255` options)**: Mutually exclusive categorical probability distribution over a `criteria` map (`key -> description`), returning the top `choice` key and `probabilities` summing to **`1.0`**.
@@ -181,19 +181,15 @@ Unlike standard generative LLMs that decode output tokens autoregressively one t
 ```json
 {
   "model": "gemini-decision-1",
-  "contents": [
+  "input": [
     {
-      "parts": [
-        {
-          "inline_data": {
-            "mime_type": "image/webp",
-            "data": "<base64-encoded Koma memfd frame with grid_225 overlay>"
-          }
-        },
-        {
-          "text": "Goal: Click the Export button and verify dialog readiness."
-        }
-      ]
+      "type": "image",
+      "data": "<base64-encoded Koma memfd frame with grid_225 overlay>",
+      "mime_type": "image/png"
+    },
+    {
+      "type": "text",
+      "text": "Goal: Click the Export button and verify dialog readiness."
     }
   ],
   "questions": {
@@ -223,18 +219,20 @@ Unlike standard generative LLMs that decode output tokens autoregressively one t
 }
 ```
 
-**`POST /v1beta/decisions` Response Wire Structure (`usage.output_tokens == 0`)**:
+**`POST /v1beta/decisions` Response Wire Structure (`usage.total_output_tokens == 0`)**:
 
 ```json
 {
-  "results": {
+  "answers": {
     "q_in_scope": {
       "type": "noul",
-      "noul": 0.97
+      "noul": 0.97,
+      "confidence": 0.97
     },
     "q_grid_target": {
       "type": "choice",
       "choice": "L13",
+      "confidence": 0.54,
       "probabilities": {
         "L13": 0.54,
         "M13": 0.41,
@@ -257,8 +255,9 @@ Unlike standard generative LLMs that decode output tokens autoregressively one t
     }
   },
   "usage": {
-    "input_tokens": 1284,
-    "output_tokens": 0
+    "total_input_tokens": 1471,
+    "total_output_tokens": 0,
+    "cached_tokens": 0
   }
 }
 ```
@@ -346,7 +345,7 @@ When a task requires open-ended generation—or when `DecisionsDriver` routes a 
   1. **Multi-Step `planner` & Error Recovery**: Decomposes complex cross-application goals, inspects L1 `app_id` quirks and `DecisionsDriver`-reranked L2 FTS5 episodes, and recovers from unexpected UI modal states.
   2. **Open-Ended Text Entry (`Zero-IME` `type_text`)**: Generates arbitrary natural-language replies, search queries, file names, and form payloads injected directly via `Koma`'s `zwp_text_input_v3` / `VirtualSeat` pipeline.
   3. **Candidate `staged_skills/*.lua` Synthesis**: Synthesizes parameterized `Phodopus` Lua macros from verified multi-step trajectories, strips unsafe tokens, and writes them to `~/.local/state/jiku/staged_skills/` for human `jiku skills approve` promotion.
-* **Heterogeneous Provider Support**: Connects to **Google AI Studio**, **Vertex AI** (via Application Default Credentials / ADC), **Anthropic** (`Messages` API with prefix prompt caching), and **OpenAI-compatible** endpoints (`OpenAI`, `DeepSeek`, `OpenRouter`, `vLLM`, `llama.cpp`, `Ollama`), mapping heterogeneous visual grounding outputs (`0..1000` bounding boxes, normalized points, or `9-anchor` window offsets) through a unified **`ActionNormalizer`**.
+* **Heterogeneous Provider Support**: Connects to **OpenCode Go** (`kind = "opencode_go"`, `https://opencode.ai/inference/go/openai/v1/chat/completions`, sending a deterministic `x-opencode-session` UUIDv4 header and defaulting to `deepseek-v4.1-flash` with `"thinking": {"type": "disabled"}`), **Google AI Studio**, **Vertex AI** (via Application Default Credentials / ADC), **Anthropic** (`Messages` API with prefix prompt caching), and **OpenAI-compatible** endpoints (`OpenAI`, `DeepSeek`, `OpenRouter`, `vLLM`, `llama.cpp`, `Ollama`), mapping heterogeneous visual grounding outputs (`0..1000` bounding boxes, normalized points, or `9-anchor` window offsets) through a unified **`ActionNormalizer`**.
 
 ---
 
