@@ -10,24 +10,29 @@ All six `komawm` repositories (`koma`, `jiku`, `koma-types`, `docs` / checkout `
 
 ### 1. `koma` (`28f5d9513e8d2952c1522b8d8ae729f7d5574c50`)
 
-The `koma` workspace manifest contains nine crates: five libraries (`koma-proto`, `koma-model`, `koma-lua`, `koma-render`, `koma-seat`) and four binaries (`koma`, `komactl`, `koma-mcp`, `koma-overview`). Under the pinned target toolchain **Rust `1.100.0` (Edition 2024)** at commit `28f5d9513e8d2952c1522b8d8ae729f7d5574c50`, all nine crates cleanly pass the repository quality gates:
+The `koma` workspace manifest contains nine crates: five libraries (`koma-proto`, `koma-model`, `koma-lua`, `koma-render`, `koma-seat`) and four binaries (`koma`, `komactl`, `koma-mcp`, `koma-overview`). It follows a zero-hardcoding, configurable-defaults + user-overrides architecture across `koma-model`, `koma-lua`, `koma-render`, and `koma-seat`:
+- **Configurable global & per-workspace layouts**: Headed workspaces default to `"dwindle"` (`LayoutMode::Dwindle`), configurable globally via `koma.layout("dwindle" | "scrolling" | "deck" | "bsp")` or per-workspace via `koma.workspace({ layout = ..., gaps = ... })`, with fine-grained parameters in `koma.dwindle({...})` and `koma.scrolling({...})`.
+- **Inheritable default keybinding table with in-place overrides**: `koma.input({ inherit_default_binds = true })` (default) loads the built-in Hyprland-compatible default keybinding table (`Mod + Return`, `Mod + Q`, `Mod + M`, `Mod + V`, `Mod + F`, `Mod + P`, `Mod + E`, `Mod + S`, `Mod + H/J/K/L`, `Mod + Shift + H/J/K/L`, `Mod + 1..9`, `Mod + Shift + 1..9`, `Mod + MouseLeft/Right`, `Mod + WheelScrollDown/Up`), merges user `koma.bind(...)` calls by overriding matching chords in-place without wiping other defaults, and supports `koma.unbind(chord)` to remove specific default chords.
+- **Complete typed appearance defaults**: `koma.appearance({...})` exposes typed defaults and user overrides for `border` (`enabled`, `width`, `active_color`, `inactive_color`, `agent_leased_color`, `human_preempt_color`), `focus_ring`, `shadow`, `dim` (plus top-level `brightness`, `dim_inactive`, `dim_strength` convenience fields), `blur`, `animations`, and `corner_radius`.
+
+Under the pinned target toolchain **Rust `1.100.0` (Edition 2024)**, all nine crates cleanly pass the repository quality gates:
 
 - `just fmt-check` (`cargo fmt --all -- --check`)
 - `just check-core` (`cargo check --workspace --locked --exclude koma --exclude koma-render`)
 - `just typecheck` (`cargo check --workspace --all-targets --locked`)
 - `just clippy` (`cargo clippy --workspace --all-targets --locked -- -D warnings`)
 - `just test-core` (`cargo test --locked -p koma-proto -p koma-model -p koma-lua -p koma-seat`)
-- `just test` (`cargo test --workspace --locked`, passing **25 unit tests** across `koma-model` (`21`), `koma-lua` (`2`), `koma-render` (`1`), and `koma` (`1`))
+- `just test` (`cargo test --workspace --locked`, passing unit tests across `koma-model`, `koma-lua`, `koma-render`, `koma-seat`, and `koma`)
 - `komactl gen-types` (deterministic LuaLS definition emission from `koma-lua`)
 - `koma --headless-check` (headless structural configuration and launch-path check)
 
 ### 2. `koma-types` (`generator_reproduced = true`)
 
-`koma-types` reproduces `types/koma.lua` byte-for-byte from `komactl gen-types` at Koma revision `28f5d9513e8d2952c1522b8d8ae729f7d5574c50`, recorded in `manifest.toml` with `generator_reproduced = true` and verified by `just check`.
+`koma-types` reproduces `types/koma.lua` byte-for-byte from `komactl gen-types` (including `LuaCATS` annotations for `koma.layout`, `koma.unbind`, `koma.input` with `inherit_default_binds`, and the full `koma.appearance` schema across `border`, `focus_ring`, `shadow`, `dim`, `blur`, `animations`, and `corner_radius`), recorded in `manifest.toml` with `generator_reproduced = true` and verified by `just check`.
 
-### 3. `jiku` (Three-Driver pure-data contracts & scaffold tests)
+### 3. `jiku` (Three-Driver pure-data contracts, configurable defaults & scaffold tests)
 
-The `jiku` workspace (`jikud`, `jiku`, `jiku-memory`, `jiku-tts`) defines pure-data contracts, configuration schemas, wire envelopes, and unit tests for the **Three-Driver architecture** (`DecisionsDriver` for `gemini-decision-1` zero-decode single-prefill decisions, `TurnModelDriver` for HTTP/2 SSE planner/text/Lua synthesis turns, and `LiveSessionDriver` for stateful full-duplex WebSocket `BidiGenerateContent` companion sessions) and passes all local formatting, typecheck, Clippy, and unit test gates under Rust `1.100.0`. Prior to `v0.1.0`, `jiku` remains a library-only, non-runnable scaffold with no network I/O daemon or executable CLI binary.
+The `jiku` workspace (`jikud`, `jiku`, `jiku-memory`, `jiku-tts`) defines pure-data contracts, configuration schemas, wire envelopes, and unit tests for the **Three-Driver architecture** (`DecisionsDriver` / `DecisionBackend` for `gemini-decision-1` zero-decode single-prefill decisions with automatic `EmulatedStructuredTextModel` fallback on `[roles.planner]`, `TurnModelDriver` for HTTP/2 SSE planner/text/Lua synthesis turns, and optional `LiveSessionDriver` for stateful full-duplex WebSocket `BidiGenerateContent` companion sessions). All compiler and runtime parameters use configurable defaults without hardcoded constants—including `[roles.decision_router.compiler]` (`DecisionCompilerConfig`: `fast_path_confidence = 0.85`, `min_cell_prob = 0.05`, `time_slot_min_confidence = 0.75`, `bernoulli_activation_threshold = 0.80`, `probe_min_prob = 0.15`, `stop_sentinel = "stop_done"`, `fallback_token = "NONE_OR_OTHER"`), `[roles.decision_router.compiler.grid]` (`GridSpec`: `cols = 15`, `rows = 15`), and range-validated `[roles.live_companion]` rates (`audio_in_sample_rate_hz` `8000..=48000` default `16000`, `audio_out_sample_rate_hz` `8000..=48000` default `24000`, `max_screen_fps` `1..=60` default `2`)—and passes all local formatting, typecheck, Clippy, and unit test gates under Rust `1.100.0`. Prior to `v0.1.0`, `jiku` remains a library-only, non-runnable scaffold with no network I/O daemon or executable CLI binary.
 
 ## Boundaries that still matter
 
