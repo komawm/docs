@@ -113,3 +113,41 @@ koma.rule.window({
 ```
 
 フォーカス切替時には `WindowAnimationTable` が `border` カーブに沿って `focus_factor` $\in [0, 1]$ を補間し、アクティブ・非アクティブ間のボーダー色を滑らかに遷移させます。
+
+## マクロにおける 2D フックばね・ベジェポインタ運動学（`ctx:move_to` / `ctx:drag`）
+
+マクロのポインタ移動とドラッグも、`KomaKinematicsSpec` を通じて $X/Y$ 各軸の減衰フックばねソルバー（$1/240\,\text{s}$ サブステップ・計算量 $O(1)$ 時間／空間）で駆動できます。
+
+$$m\ddot{x} + c\dot{x} + k(x - x_{\text{target}}) = 0$$
+
+$$m\ddot{y} + c\dot{y} + k(y - y_{\text{target}}) = 0$$
+
+移動中のリターゲットでも実時間速度 $(v_x, v_y)$ を保持し、`profile` には `"instant"`・`"minimum_jerk"`・`"spring"`（別名 `"hooke"` / `"hooke_spring"`）・`"bezier"` を指定できます。
+
+```lua
+koma.macro.define({
+  id = "canvas.spring_pan_drag",
+  app_id = ".*",
+  description = "2D 減衰フックばね運動学を用いた中ボタンドラッグ操作",
+  params = {
+    dx = { type = "int", default = 180 },
+    dy = { type = "int", default = -90 },
+  },
+  run = function(ctx, args)
+    ctx:drag({
+      button = "middle",
+      from = { anchor = "center", x = 0, y = 0 },
+      to = { anchor = "center", x = args.dx, y = args.dy },
+      hold_before_move_ms = 25,
+      kinematics = {
+        profile = "spring",
+        mass = 1.0,
+        damping = 22.0,
+        stiffness = 340.0,
+        epsilon = 0.01,
+      },
+      hold_before_release_ms = 20,
+    })
+  end,
+})
+```

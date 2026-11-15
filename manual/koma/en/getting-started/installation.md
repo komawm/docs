@@ -36,20 +36,28 @@ Or configure `/etc/apt/sources.list.d/komawm.sources` manually (`Signed-By: /usr
 
 ## Arch Linux
 
-Install from the release `.pkg.tar.zst` archive or build via `PKGBUILD`:
+Install the prebuilt multi-arch AUR package (`koma-bin`, zero local Cargo build, backed by `https://cdn.komawm.org`), build from source via `koma`, or install a release `.pkg.tar.zst` archive directly:
 
 ```bash
-# Verify downloaded package digest first
-sha256sum -c SHA256SUMS-archlinux
+# Prebuilt binaries from R2 CDN (x86_64 & aarch64)
+paru -S koma-bin
+
+# Or build from source PKGBUILD / install downloaded package
+paru -S koma
 sudo pacman -U koma-0.0.1-1-x86_64.pkg.tar.zst
 ```
 
 Runtime dependencies resolved by `pacman` include `seatd` (or `systemd-libs`), `libinput`, `mesa`, `libdisplay-info`, `libxkbcommon`, `wayland`, `pixman`, and `libglvnd`.
 
-## Fedora / RHEL, Alpine, NixOS & BSD
+## Fedora / RHEL, Alpine, Homebrew, NixOS & BSD
 
 - **Fedora / RHEL**: Install the nFPM/Copr `.rpm` (`sudo dnf install ./koma-*.rpm`).
 - **Alpine Linux**: Install the `.apk` package (`sudo apk add --allow-untrusted ./koma-*.apk` after `sha256sum` verification) with `seatd` / `elogind` enabled.
+- **Homebrew on Linux (Linuxbrew)**: Install the prebuilt Linux formula:
+  ```bash
+  curl -fsSLO https://cdn.komawm.org/install/koma/koma.rb
+  brew install --formula ./koma.rb
+  ```
 - **FreeBSD `15.1-RELEASE`**: Requires `seatd`, `libinput`, `libudev-devd`, `mesa-libs`, `libdisplay-info`, `libxkbcommon`, `wayland`, and `basu` / `consolekit2` for unprivileged VT seat access.
 - **OpenBSD `8+`**: Template provided in `komawm/packaging/openbsd/` (experimental; runtime verification pending).
 

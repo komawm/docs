@@ -36,19 +36,28 @@ sudo apt install koma
 
 ## Arch Linux
 
-使用校验后的 `.pkg.tar.zst` 离线包或 `PKGBUILD` 安装：
+推荐优先使用托管于 `https://cdn.komawm.org` 的多架构预构建 AUR 包 `koma-bin`（无需本地编译），也可从源码包 `koma` 构建或直接 `pacman -U` 安装 `.pkg.tar.zst`：
 
 ```bash
-sha256sum -c SHA256SUMS-archlinux
+# 直接安装预构建二进制包（支持 x86_64 与 aarch64）
+paru -S koma-bin
+
+# 或从源码 PKGBUILD 构建 / 安装已校验的离线包
+paru -S koma
 sudo pacman -U koma-0.0.1-1-x86_64.pkg.tar.zst
 ```
 
 `pacman` 会自动解析 `seatd`（或 `systemd-libs`）、`libinput`、`mesa`、`libdisplay-info`、`libxkbcommon`、`wayland`、`pixman` 与 `libglvnd` 等运行时依赖。
 
-## Fedora / RHEL、Alpine、NixOS 与 BSD
+## Fedora / RHEL、Alpine、Homebrew、NixOS 与 BSD
 
 - **Fedora / RHEL**：安装 nFPM 或 Copr 构建的 `.rpm`（`sudo dnf install ./koma-*.rpm`）。
 - **Alpine Linux**：校验 `SHA256SUMS` 后安装 `.apk`（`sudo apk add --allow-untrusted ./koma-*.apk`），并启用 `seatd` 或 `elogind`。
+- **Homebrew on Linux（Linuxbrew）**：直接安装预构建二进制配方：
+  ```bash
+  curl -fsSLO https://cdn.komawm.org/install/koma/koma.rb
+  brew install --formula ./koma.rb
+  ```
 - **FreeBSD `15.1-RELEASE`**：需要 `seatd`、`libinput`、`libudev-devd`、`mesa-libs`、`libdisplay-info`、`libxkbcommon`、`wayland` 等包提供无特权 VT 座席访问。
 - **OpenBSD `8+`**：打包模板位于 `komawm/packaging/openbsd/`（目前仍为实验性模板，待运行时验证）。
 

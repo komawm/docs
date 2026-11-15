@@ -113,3 +113,41 @@ koma.rule.window({
 ```
 
 聚焦状态切换时，`WindowAnimationTable` 会根据 `border` 曲线实时插值 `focus_factor` $\in [0, 1]$，在激活边框色与非激活边框色之间平滑过渡。
+
+## 宏中的二维胡克弹簧与贝塞尔指针运动学（`ctx:move_to` / `ctx:drag`）
+
+GUI 宏中的鼠标路径通过 `KomaKinematicsSpec` 在双轴上运行相同的阻尼胡克定律求解器（每帧按 $1/240\,\text{s}$ 子步积分，时间与空间复杂度均为 $O(1)$）：
+
+$$m\ddot{x} + c\dot{x} + k(x - x_{\text{target}}) = 0$$
+
+$$m\ddot{y} + c\dot{y} + k(y - y_{\text{target}}) = 0$$
+
+中途修改目标坐标会保留实时二维速度动量 $(v_x, v_y)$，`profile` 支持 `"instant"`、`"minimum_jerk"`、`"spring"`（别名 `"hooke"`、`"hooke_spring"`）与 `"bezier"`：
+
+```lua
+koma.macro.define({
+  id = "canvas.spring_pan_drag",
+  app_id = ".*",
+  description = "使用二维阻尼胡克弹簧运动学执行中键画布平移拖拽",
+  params = {
+    dx = { type = "int", default = 180 },
+    dy = { type = "int", default = -90 },
+  },
+  run = function(ctx, args)
+    ctx:drag({
+      button = "middle",
+      from = { anchor = "center", x = 0, y = 0 },
+      to = { anchor = "center", x = args.dx, y = args.dy },
+      hold_before_move_ms = 25,
+      kinematics = {
+        profile = "spring",
+        mass = 1.0,
+        damping = 22.0,
+        stiffness = 340.0,
+        epsilon = 0.01,
+      },
+      hold_before_release_ms = 20,
+    })
+  end,
+})
+```

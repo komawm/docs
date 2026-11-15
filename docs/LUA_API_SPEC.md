@@ -447,6 +447,12 @@ koma.rule.window({
     inactive_opacity = 1.0,
 })
 
+-- 7. Waydroid Container & Multi-Window Compatibility Defaults (builtin unless overridden)
+-- Koma automatically recognizes `app_id == "Waydroid"` and `waydroid.<android.package>`:
+--   * defaults `no_blur = true` (explicit rule `no_blur = false` still wins)
+--   * when a Waydroid container commits an empty `wl_surface.set_input_region`, treats it as
+--     click-through, suppresses border/focus-ring/shadow/blur, and disables `clip_to_geometry`
+--     so multi-window `waydroid.*` surfaces and subsurfaces remain interactive.
 ```
 
 ### 4.2 Layer-Shell Rules (`koma.rule.layer`)
@@ -494,7 +500,7 @@ Every `ctx:*` method verifies the caller's `WorkspaceLease` `Epoch` before and a
 | `ctx:key(chord, opts?)` | Optional (`hold_ms` / `after_ms`) | Taps a key or modifier chord (`"Ctrl+Shift+L"`, `"Tab"`, `"F2"`). `opts`: `{ hold_ms = 15, after_ms = 20 }`. | 
 | `ctx:sequence(chords, gap_ms)` | `SleepTimer` between steps | Dispatches sequential ribbon/modal mnemonics (e.g., `{ "Alt+H", "A", "C" }` in Excel/WPS) with exact cadence. | 
 | `ctx:key_down(key)` / `ctx:key_up(key)` | Synchronous | Holds or releases a modifier/key; tracked in `vSeat`'s shadow ledger for automatic cleanup on abort. | 
-| `ctx:move_to(pos, kinematics?)` | `PointerTrajectory` | Moves `vSeat` pointer using `"instant"`, `"minimum_jerk"`, `"spring"`, or custom `fn(t) -> (x, y)` closure. | 
+| `ctx:move_to(pos, kinematics?)` | `PointerTrajectory` | Moves `vSeat` pointer using `KomaKinematicsSpec`: `"instant"`, `"minimum_jerk"`, `"spring"` / `"hooke"` / `"hooke_spring"`, or `"bezier"`. | 
 | `ctx:click(pos, opts?)` | `PointerTrajectory` + `SleepTimer` | Moves to `pos` and clicks (`button = "left" | "right" | "middle"`, `clicks = 1 | 2 | 3`, `hold_ms = 25`). | 
 | `ctx:drag(spec)` | `PointerTrajectory` + `SleepTimer` | Executes press -> `hold_before_move_ms` -> smooth trajectory (`from` -> `to`) -> `hold_before_release_ms` -> release (essential for ruler sliders, timeline scrubbing, and gizmo drags). | 
 | `ctx:scroll(spec)` | `SleepTimer` | Emits discrete wheel clicks or smooth `wl_pointer.axis_v120` scroll (`dx`, `dy`, `steps`, `step_ms`). | 
@@ -507,6 +513,38 @@ Every `ctx:*` method verifies the caller's `WorkspaceLease` `Epoch` before and a
 | `ctx:outputs()` | Synchronous (`DesktopQuerySnapshot`) | Returns `LuaOutputInfo[]` (`{ name, width, height, scale, refresh_mhz, active_workspace, focused }`). |
 | `ctx:workspaces()` | Synchronous (`DesktopQuerySnapshot`) | Returns `LuaWorkspaceInfo[]` (`{ id, name, layout, presentation, focused_window_id, window_count, active }`). |
 | `ctx:dispatch(action)` | `QueuedHostAction::DispatchAction` | Enqueues any compiled `koma.act.*` descriptor (including `koma.act.window.focus(win_id)` and `koma.act.workspace.set_layout(mode, workspace?)`) checked against `ws.lease.epoch()`. Nested `LuaCallback` targets are rejected with `RuntimeError`. |
+
+#### `KomaKinematicsSpec` & 2D Damped Hooke Spring Pointer Motion (`PointerSpring2D`)
+
+Both `ctx:move_to(pos, kinematics?)` and `ctx:drag(spec)` accept a `KomaKinematicsSpec` table (`{ profile?, duration_ms?, arc_curvature?, curve?, mass?, damping?, damping_ratio?, stiffness?, epsilon?, bezier? }`). When `profile` is `"spring"`, `"hooke"`, or `"hooke_spring"`, `koma-model`'s `PointerSpring2D` integrates per-axis semi-implicit Euler steps (`m * p'' + c * p' + k * (p - p_target) = 0`) at $1/240\,\text{s}$ sub-steps in $O(1)$ time and $O(1)$ space per tick, preserving `(vx, vy)` momentum when retargeted mid-motion:
+
+```lua
+koma.macro.define({
+    id = "canvas.spring_pan_drag",
+    app_id = ".*",
+    description = "Middle-mouse canvas pan drag using 2D damped Hooke spring mouse physics",
+    params = {
+        dx = { type = "int", default = 180 },
+        dy = { type = "int", default = -90 },
+    },
+    run = function(ctx, args)
+        ctx:drag({
+            button = "middle",
+            from = { anchor = "center", x = 0, y = 0 },
+            to = { anchor = "center", x = args.dx, y = args.dy },
+            hold_before_move_ms = 25,
+            kinematics = {
+                profile = "spring",
+                mass = 1.0,
+                damping = 22.0,
+                stiffness = 340.0,
+                epsilon = 0.01,
+            },
+            hold_before_release_ms = 20,
+        })
+    end,
+})
+```
 
 ### 5.3 Defining Parameterized Macros (`koma.macro.define`)
 

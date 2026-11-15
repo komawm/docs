@@ -5,9 +5,28 @@
 
 ## 安装 `jikud` 与 `jiku`
 
-可通过 [komawm/packaging](https://github.com/komawm/packaging)（`cdn.komawm.org` APT `jiku` 包、nFPM `.deb`/`.rpm`/`.apk`、Arch `PKGBUILD.jiku.in`）安装，或从 [komawm/jiku](https://github.com/komawm/jiku) 使用 **Rust `1.100.0`（Edition 2024）** 源码构建：
+可通过 [komawm/packaging](https://github.com/komawm/packaging)（`cdn.komawm.org` 签名 APT `jiku` 包、AUR `jiku-bin`、Linuxbrew `jiku.rb` 或 nFPM `.deb`/`.rpm`/`.apk`）安装预构建包，从 [komawm/jiku](https://github.com/komawm/jiku) 或 `cdn.komawm.org` 下载 `v0.0.1` 多架构发布压缩包（`jiku-0.0.1-x86_64-unknown-linux-gnu.tar.gz` 或 `jiku-0.0.1-aarch64-unknown-linux-gnu.tar.gz`），或使用 **Rust `1.100.0`（Edition 2024）** 从源码安装构建。
+
+### 预构建二进制渠道（`x86_64` 与 `aarch64`）
 
 ```bash
+# Arch Linux（AUR 预构建二进制包）
+paru -S jiku-bin
+
+# Debian / Ubuntu（签名 APT 软件源）
+curl -fsSL https://cdn.komawm.org/apt/setup.sh | sudo bash && sudo apt install -y jiku
+
+# Linuxbrew
+curl -fsSLO https://cdn.komawm.org/install/jiku/jiku.rb && brew install --formula ./jiku.rb
+```
+
+### Cargo 与源码构建
+
+```bash
+# 使用 Cargo 直接安装
+cargo +1.100.0 install --git https://github.com/komawm/jiku.git jikud jiku --locked
+
+# 或克隆仓库并在本地构建
 git clone https://github.com/komawm/jiku.git
 cd jiku
 cargo +1.100.0 build --release --locked -p jikud -p jiku

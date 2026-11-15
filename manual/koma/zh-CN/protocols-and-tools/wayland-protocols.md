@@ -7,13 +7,15 @@ Koma 在 [Smithay](https://github.com/Smithay/smithay) 之上完整注册了现�
 | 协议 / 全局对象 | 用途与生态工具 | 安全与沙箱隔离规则 |
 | :--- | :--- | :--- |
 | `xdg_shell`（`xdg_wm_base`） | 普通应用窗口、弹窗、全屏及 SSD 服务端装饰协商（`zxdg_decoration_manager_v1`） | 沙箱客户端严格限制在指定 `Headless` 工作区内 |
-| `zwlr_layer_shell_v1` | 状态栏（`waybar`）、通知（`swaync`）、启动器（`fuzzel`/`rofi`）与 `koma-overview` | 互斥区（`exclusive_zone`）自动缩减工作区可用范围；对沙箱客户端隐藏 |
+| `zwlr_layer_shell_v1` | 状态栏与面板小组件（`waybar`、`ironbar`、`quickshell`）、通知（`swaync`）、启动器与 `koma-overview` | 支持互斥区、`get_popup` 弹窗边界放开与键鼠抓取；对沙箱客户端隐藏 |
 | `ext_session_lock_v1` | 故障闭锁（Fail-closed）锁屏（`swaylock`、`hyprlock`） | 锁屏期间遮蔽画面、拒绝 `grim` 截屏（`failed`）、延迟 `xdg-activation` |
 | `zwlr_output_manager_v1` | 多显示器动态探测、`test` 与 `apply`（`kanshi`、`wdisplays`） | 禁止沙箱/受限客户端绑定 |
 | `zwlr_output_power_manager_v1` 与 `zwlr_gamma_control_manager_v1` | DPMS 息屏唤醒（`wlopm`）与夜览色温调节（`wlsunset`、`gammastep`） | 对受限客户端屏蔽 |
 | `wp_fractional_scale_manager_v1` 与 `wp_viewporter` | 原生锐利分数 HiDPI 缩放（`1.25`、`1.5`、`1.6`、`"auto"`） | 按显示器独立下发 |
+| `wp_single_pixel_buffer_v1`、`wp_presentation` 与 `wl_shm` 格式 | 纯色小组件（`ironbar`/`quickshell`）、呈现时间反馈与 `Abgr8888`/`Xbgr8888` 缓冲格式（`Waydroid`） | 向图形客户端开放 |
 | `xdg_activation_v1` 与 `xdg_toplevel_icon_v1` | 跨应用焦点激活令牌（`10 s` TTL）与窗口图标校验 | 校验沙箱归属并在锁屏期间自动推迟 |
 | `zwlr_foreign_toplevel_manager_v1` 与 `ext_foreign_toplevel_list_v1` | 任务栏窗口列表、激活、最小化与关闭控制 | 禁止沙箱绑定且在锁屏下自动保护 |
+| `zwlr_virtual_pointer_manager_v1` 与 `zwp_keyboard_shortcuts_inhibit_manager_v1` | 远程桌面虚拟指针与快捷键抑制传递（`RustDesk`） | 禁止沙箱客户端绑定；始终保留 `Mod + G` 抢占与 VT 切换不进入抑制 |
 
 ## 截屏与 `xdg-desktop-portal`
 

@@ -9,8 +9,12 @@ Koma は `koma.rule.window`（Wayland / XWayland ウィンドウ）および `ko
 | `matches` / `excludes` | 一致条件配列 | `app_id`、`title`、`tag`、`workspace`、`is_floating`、`is_focused`、`is_urgent`、`is_modal_dialog`、`is_xwayland`、`is_screencast_target`、`is_agent_workspace`、`at_startup` |
 | `initial` | 初回マッピング時 | `open_on_output`、`open_on_workspace`、`open_mode`（`"tiled"` / `"floating"` / `"fullscreen"`）、`open_focused`、`default_floating_pos = { x, y, anchor }` |
 | `opacity` | ライブサーフェス | 透過率の上書き（`0.0..=1.0`） |
+| `inactive_opacity` | ライブサーフェス | 非フォーカス時の透過率上書き（`0.0..=1.0`） |
 | `corner_radius` | ライブサーフェス | ウィンドウ単位の角丸半径（論理ピクセル） |
 | `clip_to_geometry` | ライブサーフェス | レイアウトジオメトリでクライアント描画をクリップ |
+| `animation` | ライブサーフェス | ウィンドウ単位の開閉アニメーション指定（`"popin 88%"` / `"slide:top"` 等） |
+| `no_blur` / `no_shadow` | ライブサーフェス | Dual Kawase ブラーまたはドロップシャドウを無効化 |
+| `border_color` | ライブサーフェス | ウィンドウ単位のアクティブボーダー色上書き（`"#rrggbb"` / `"#rrggbbaa"`） |
 | `focusable` | ライブ入力 | キーボードフォーカスの可否を制御 |
 | `pin_on_output` | ライブサーフェス | 同一出力でのワークスペース切替時も追従固定 |
 | `block_out_from` | プライバシー保護 | `"agent_capture"` \| `"screencast"` \| `"screencopy"` \| `"all"` |
@@ -72,3 +76,9 @@ koma.rule.layer({
 - **入力遮断（`4032`）**：保護サーフェス上を対象とした `vseat.*` クリック・ドラッグ・キー・テキスト注入はすべて `4032 ERR_PROTECTED_SURFACE` で拒否されます。
 - **完全な機密保護**：`koma-mcp` や [Jiku](/ja/jiku/) からパスワードや 2FA トークン画面が参照されることはありません。
 - **キャプチャ種別ごとの制御**：`"screencopy"` / `"all"` は `zwlr_screencopy_manager_v1`（`grim`）からも遮蔽し、`"screencast"` は Portal 画面共有ストリームで遮蔽します。
+
+## Waydroid・リモートデスクトップ（`RustDesk`）・ウィジェット互換性
+
+- **Android / `Waydroid` コンテナ（`Waydroid`、`waydroid.<package>`）**：ユーザー側の `koma.rule.window` で明示上書きされない限り、Waydroid ウィンドウには既定で `no_blur = true` を適用します。また空の `wl_surface.set_input_region` を持つコンテナサーフェスをクリックスルーとして扱い、ボーダー・フォーカスリング・シャドウ・ブラーと `clip_to_geometry` を自動的に抑止することでマルチウィンドウとサブサーフェスの操作性を保ちます。
+- **リモートデスクトップ（`RustDesk`）**：`zwlr_virtual_pointer_manager_v1` による仮想ポインタ入力およびフォーカス時の `zwp_keyboard_shortcuts_inhibit_manager_v1` に対応しつつ、緊急退避用の `Mod + G` と VT 切替ショートカットは常に抑制対象外として保護します。
+- **パネル・ウィジェット（`waybar`、`ironbar`、`quickshell`）**：`zwlr_layer_shell_v1` の `get_popup` 制約解除とグラブ、`wp_single_pixel_buffer_v1`、`wp_presentation` フィードバック、`wl_shm` `Abgr8888`/`Xbgr8888` フォーマットをサポートします。

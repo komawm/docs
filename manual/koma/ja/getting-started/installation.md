@@ -36,19 +36,28 @@ sudo apt install koma
 
 ## Arch Linux
 
-署名・ダイジェスト確認済みの `.pkg.tar.zst` を `pacman -U` で導入します。
+`https://cdn.komawm.org` 配信のマルチアーキテクチャ・ビルド済み AUR パッケージ `koma-bin`（ローカル Cargo コンパイル不要）またはソース版 `koma` / `.pkg.tar.zst` を利用できます。
 
 ```bash
-sha256sum -c SHA256SUMS-archlinux
+# R2 CDN 配信のビルド済みバイナリを導入（x86_64 / aarch64）
+paru -S koma-bin
+
+# またはソース PKGBUILD ビルド / 検証済みパッケージの直接導入
+paru -S koma
 sudo pacman -U koma-0.0.1-1-x86_64.pkg.tar.zst
 ```
 
 `seatd`（または `systemd-libs`）、`libinput`、`mesa`、`libdisplay-info`、`libxkbcommon`、`wayland`、`pixman`、`libglvnd` が依存関係として解決されます。
 
-## Fedora / RHEL・Alpine・NixOS・BSD
+## Fedora / RHEL・Alpine・Homebrew・NixOS・BSD
 
 - **Fedora / RHEL**：nFPM または Copr ビルドの `.rpm` を導入します（`sudo dnf install ./koma-*.rpm`）。
 - **Alpine Linux**：ダイジェスト確認後に `.apk` を導入し（`sudo apk add --allow-untrusted ./koma-*.apk`）、`seatd` または `elogind` を有効化します。
+- **Homebrew on Linux（Linuxbrew）**：ビルド済み Linux 用 Formula から導入します：
+  ```bash
+  curl -fsSLO https://cdn.komawm.org/install/koma/koma.rb
+  brew install --formula ./koma.rb
+  ```
 - **FreeBSD `15.1-RELEASE`**：`seatd`、`libinput`、`libudev-devd`、`mesa-libs`、`libdisplay-info`、`libxkbcommon`、`wayland` が必要です。
 - **OpenBSD `8+`**：`komawm/packaging/openbsd/` に実験的テンプレートを用意しています。
 

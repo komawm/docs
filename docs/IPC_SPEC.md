@@ -340,7 +340,7 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
 ```
 
-* **Device & Coordinate Modes**: `vseat.pointer_move` and `vseat.click` accept `"device": "pointer" | "relative" | "tablet"` (driving [`wl_pointer`](https://wayland.app/protocols/wayland), `zwp_relative_pointer_v1`, or [`tablet-v2`](https://wayland.app/protocols/tablet-v2) respectively) and `"profile": "instant" | "minimum_jerk" | "spring"`.
+* **Device & Coordinate Modes**: `vseat.pointer_move`, `vseat.click`, and `vseat.drag` accept `"device": "pointer" | "relative" | "tablet"` (driving [`wl_pointer`](https://wayland.app/protocols/wayland), `zwp_relative_pointer_v1`, or [`tablet-v2`](https://wayland.app/protocols/tablet-v2) respectively) and `"profile": "instant" | "minimum_jerk" | "spring" | "hooke" | "hooke_spring" | "bezier"` with optional Hooke/Bezier fields (`mass`, `damping`, `damping_ratio`, `stiffness`, `epsilon`, `curve`, `bezier`, `duration_ms`, `arc_curvature`).
 
 * **`vseat.key`**: `{ "ws_id": "ws_01", "expected_epoch": 4, "modifiers": ["Ctrl", "Shift"], "key": "End", "action": "tap" | "down" | "up", "hold_ms": 30 }`.
 

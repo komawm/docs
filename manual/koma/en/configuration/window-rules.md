@@ -9,8 +9,12 @@ Koma provides declarative rule matching for both Wayland/XWayland application wi
 | `matches` / `excludes` | Array of match tables | Match by `app_id`, `title`, `tag`, `workspace`, `is_floating`, `is_focused`, `is_urgent`, `is_modal_dialog`, `is_xwayland`, `is_screencast_target`, `is_agent_workspace`, `at_startup` |
 | `initial` | Initial spawn only | `open_on_output`, `open_on_workspace`, `open_mode` (`"tiled"` / `"floating"` / `"fullscreen"`), `open_focused`, `default_floating_pos = { x, y, anchor }` |
 | `opacity` | Live surface | Surface opacity override (`0.0..=1.0`) |
+| `inactive_opacity` | Live surface | Inactive-window opacity multiplier (`0.0..=1.0`) |
 | `corner_radius` | Live surface | Per-window corner radius override in logical pixels |
 | `clip_to_geometry` | Live surface | Clips client textures to layout geometry |
+| `animation` | Live surface | Per-window open/close animation preset (for example `"popin 88%"`, `"slide:top"`) |
+| `no_blur` / `no_shadow` | Live surface | Disables Dual Kawase blur or compositor drop shadow for this window |
+| `border_color` | Live surface | Per-window active border color override (`"#rrggbb"` / `"#rrggbbaa"`) |
 | `focusable` | Live input | Allows or prevents keyboard focus |
 | `pin_on_output` | Live surface | Pins floating window across workspace switches on an output |
 | `block_out_from` | Privacy / Capture | `"agent_capture"` \| `"screencast"` \| `"screencopy"` \| `"all"` |
@@ -72,3 +76,9 @@ koma.rule.layer({
 - **Write Fence (`4032`)**: Any `vseat.*` click, drag, key, or text injection targeting a protected window is rejected by the compositor with `4032 ERR_PROTECTED_SURFACE` before dispatching input.
 - **Sovereign Privacy**: Neither `koma-mcp` nor [Jiku](/jiku/) can ever read passwords, 2FA OTPs, or banking dialogs flagged with `block_out_from`.
 - **Screencast & Screencopy Isolation**: Setting `block_out_from = "screencopy"` or `"all"` also blackouts the surface in `zwlr_screencopy_manager_v1` (`grim`) captures, while `"screencast"` redacts portal PipeWire streams.
+
+## Waydroid, Remote Desktop (`RustDesk`) & Widget Compatibility
+
+- **Android / `Waydroid` Containers (`Waydroid`, `waydroid.<package>`)**: Koma automatically applies `no_blur = true` defaults to Waydroid windows (unless explicitly overridden by a user `koma.rule.window` rule) and detects an empty `wl_surface.set_input_region` container surface, treating it as click-through with suppressed border, focus ring, shadow, blur, and automatic `clip_to_geometry` bypass so multi-window `waydroid.*` surfaces and subsurfaces remain responsive.
+- **Remote Desktop (`RustDesk`)**: Koma supports `zwlr_virtual_pointer_manager_v1` virtual pointer events alongside `zwp_keyboard_shortcuts_inhibit_manager_v1` shortcut inhibition when focused, while reserving emergency `Mod + G` preemption and TTY/VT switch chords so local recovery never locks.
+- **Bars & Panel Widgets (`waybar`, `ironbar`, `quickshell`)**: Layer-shell surfaces using `get_popup`, `wp_single_pixel_buffer_v1`, `wp_presentation` feedback, and `wl_shm` `Abgr8888`/`Xbgr8888` formats unconstrain and receive interactive pointer/keyboard grabs cleanly.

@@ -113,3 +113,41 @@ koma.rule.window({
 ```
 
 All `WindowAnimationTable` focus transitions interpolate border endpoints smoothly via `focus_factor` $\in [0, 1]$ without requiring external shader plugins.
+
+## 2D Hooke Spring & Bezier Cursor Kinematics in Macros (`ctx:move_to` / `ctx:drag`)
+
+Macro cursor paths use the same damped Hooke solver per axis ($O(1)$ time and $O(1)$ space per tick at $1/240\,\text{s}$ sub-stepping) via `KomaKinematicsSpec`:
+
+$$m\ddot{x} + c\dot{x} + k(x - x_{\text{target}}) = 0$$
+
+$$m\ddot{y} + c\dot{y} + k(y - y_{\text{target}}) = 0$$
+
+Retargeting mid-flight preserves live cursor velocity $(v_x, v_y)$, and `profile` accepts `"instant"`, `"minimum_jerk"`, `"spring"` (aliases `"hooke"`, `"hooke_spring"`), or `"bezier"`:
+
+```lua
+koma.macro.define({
+  id = "canvas.spring_pan_drag",
+  app_id = ".*",
+  description = "Middle-mouse pan drag with 2D damped Hooke spring kinematics",
+  params = {
+    dx = { type = "int", default = 180 },
+    dy = { type = "int", default = -90 },
+  },
+  run = function(ctx, args)
+    ctx:drag({
+      button = "middle",
+      from = { anchor = "center", x = 0, y = 0 },
+      to = { anchor = "center", x = args.dx, y = args.dy },
+      hold_before_move_ms = 25,
+      kinematics = {
+        profile = "spring",
+        mass = 1.0,
+        damping = 22.0,
+        stiffness = 340.0,
+        epsilon = 0.01,
+      },
+      hold_before_release_ms = 20,
+    })
+  end,
+})
+```
