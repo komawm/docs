@@ -95,7 +95,8 @@ koma.appearance({
 })
 
 koma.rule.window({
-  app_id = "foot",
+  name = "terminal-rice",
+  matches = { { app_id = "^foot$" } },
   opacity = 0.96,
   inactive_opacity = 0.84,
   animation = "popin 88%",
@@ -103,7 +104,8 @@ koma.rule.window({
 })
 
 koma.rule.window({
-  app_id = "mpv",
+  name = "video-player-clean",
+  matches = { { app_id = "^mpv$" } },
   no_blur = true,
   no_shadow = true,
   inactive_opacity = 1.0,
