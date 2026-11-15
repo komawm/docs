@@ -50,10 +50,12 @@ koma.monitor({
     output = "eDP-1",
     mode = "2560x1600@240.000", -- Or "preferred", or { width = 2560, height = 1600, refresh_hz = 240.0 }
     position = { x = 0, y = 0 },
-    scale = 1.6,                -- Native wp-fractional-scale-v1 + wp-viewporter
+    scale = 1.6,                -- Numeric scale or "auto" (DPI-aware), wp-fractional-scale-v1 + wp-viewporter
     transform = "normal",       -- "normal" | "90" | "180" | "270" | "flipped" | "flipped-90" | ...
     vrr = "on_demand",          -- false | true | "on_demand" (enabled only when matching window VRR rule is active)
     max_bpc = 10,               -- Optional connector color depth clamp (8 | 10 | 12)
+    safe_area = { top = 0, bottom = 0, left = 0, right = 0 }, -- Optional notch/cutout insets (e.g., Apple Silicon MacBooks)
+    allow_non_desktop = false,  -- Skip non-desktop connectors (VR HMDs, Touch Bar) unless explicitly true
     focus_at_startup = true,
     backdrop_color = "#111216",
 })
@@ -136,9 +138,20 @@ koma.input({
     },
     touchpad = {
         tap_to_click = true,
+        tap_and_drag = true,
+        tap_drag_lock = false,
         natural_scroll = true,
         disable_while_typing = true,
+        disable_while_trackpointing = true, -- Or alias `dwtp`
+        accel_profile = "adaptive",         -- "adaptive" | "flat"
+        accel_speed = 0.0,                  -- -1.0 .. 1.0
+        scroll_method = "two_finger",       -- "none" | "no_scroll" | "two_finger" | "edge" | "on_button_down"
+        click_method = "clickfinger",       -- "none" | "button_areas" | "clickfinger" (MacBook clickpad parity)
+        left_handed = false,
+        middle_emulation = false,
+        disabled_on_external_mouse = false,
         scroll_factor = 1.0,
+        pinch_sensitivity = 1.0,
     },
     tablet = {
         map_to_output = "eDP-1", -- Compatible with kernel tablet-v2 and OpenTabletDriver virtual devices
@@ -155,14 +168,21 @@ koma.device({
     map_to_output = "eDP-1",
 })
 
+koma.bezier("rice_pop", 0.05, 0.9, 0.1, 1.1, 260)
+koma.spring("glide", { mass = 1.0, damping_ratio = 0.82, stiffness = 360.0, epsilon = 0.001 })
+
 koma.appearance({
     border = {
         enabled = true,
         width = 2.0,
         active_color = "#58a6ff",
+        active_color_end = "#bb9af7",    -- Optional gradient endpoint color
         inactive_color = "#30363d",
-        agent_leased_color = "#d2a8ff",   -- Visual badge when a workspace holds AgentExclusive lease
-        human_preempt_color = "#f0883e",  -- Visual flash/badge on Mod + G human preemptive takeover
+        inactive_color_end = "#1f2335",  -- Optional inactive gradient endpoint color
+        gradient_angle = 45.0,
+        gradient_rotate_rpm = 0.0,       -- Continuous rotation speed (RPM) when non-zero
+        agent_leased_color = "#d2a8ff",  -- Visual badge when a workspace holds AgentExclusive lease
+        human_preempt_color = "#f0883e", -- Visual flash/badge on Mod + G human preemptive takeover
     },
     focus_ring = {
         enabled = false,
@@ -176,6 +196,7 @@ koma.appearance({
         render_power = 3,
         sharp = false,
         color = "#00000073",
+        inactive_color = "#00000040",
         offset_x = 0.0,
         offset_y = 4.0,
         scale = 1.0,
@@ -203,15 +224,27 @@ koma.appearance({
     },
     animations = {
         enabled = true,
+        solver = "spring",              -- "spring" (Damped Hooke Semi-Implicit Euler) | "analytical_spring"
+        mass = 1.0,
+        damping = 36.0,
         damping_ratio = 1.0,
         stiffness = 800.0,
         epsilon = 0.001,
         open_scale_from = 0.85,
         close_scale_to = 0.90,
+        curves = {},                    -- Merged with curves registered via `koma.bezier` / `koma.spring`
+        windows_open = { enabled = true, curve = "rice_pop", style = "popin 85%" },
+        windows_close = { enabled = true, curve = "glide", style = "slide" },
+        windows_move = { enabled = true, curve = "glide" },
+        fade = { enabled = true, curve = "md3_decel", duration_ms = 180 },
+        border = { enabled = true, curve = "snappy_spring" },
+        workspaces = { enabled = true, curve = "overshot", style = "slidevert" },
     },
     corner_radius = 10,
 })
 ```
+
+`koma.bezier(name, x1, y1, x2, y2, duration_ms?)` (or `{ points = {x1, y1, x2, y2}, duration_ms }`) and `koma.spring(name, { mass, damping, damping_ratio, stiffness, epsilon })` merge named curves into `animations.curves` without wiping previously registered keys when `koma.appearance(...)` is evaluated afterward. Named presets include `"linear"`, `"ease_out"`, `"default"`, `"md3_decel"`, `"overshot"`, `"fluent"`, `"snappy_spring"`, `"bouncy_spring"`, and `"gentle_spring"`. Window open/close styles support `"popin"`, `"popin 85%"`, `"slide"`, `"slide top|bottom|left|right"`, `"gnomed"`, and `"fade"`; workspace transition styles support `"slide"`, `"slidevert"`, `"fade"`, and `"none"`.
 
 ## 3. Keybindings, Modal Submaps & Gestures API
 
@@ -230,12 +263,15 @@ local term_bind = koma.bind("Mod + Return", koma.act.spawn({ "ghostty" }), {
     cooldown_ms = 150,
 })
 
--- Built-in window, column, workspace, and Agent Deck/Stash actions
+-- Built-in window, column, monitor, workspace, and Agent Deck/Stash actions
 koma.bind("Mod + Q", koma.act.window.close(), { desc = "Close focused window" })
 koma.bind("Mod + F", koma.act.window.fullscreen_toggle(), { desc = "Toggle fullscreen" })
 koma.bind("Mod + V", koma.act.window.float_toggle(), { desc = "Toggle floating state" })
 koma.bind("Mod + H", koma.act.focus.left(), { desc = "Focus column/window left" })
 koma.bind("Mod + L", koma.act.focus.right(), { desc = "Focus column/window right" })
+koma.bind("Mod + Comma",  koma.act.monitor.focus_left(),  { desc = "Focus monitor left" })
+koma.bind("Mod + Period", koma.act.monitor.focus_right(), { desc = "Focus monitor right" })
+koma.bind("Mod + Shift + Period", koma.act.window.move_to_monitor_right(), { desc = "Move window to monitor right" })
 koma.bind("Mod + BracketLeft",  koma.act.deck.cycle_prev(), { desc = "Pop previous window from Stash to Deck" })
 koma.bind("Mod + BracketRight", koma.act.deck.cycle_next(), { desc = "Cycle active Deck window into Stash" })
 koma.bind("Mod + Tab", koma.act.overview.toggle(), { desc = "Toggle koma-overview workspace grid" })
@@ -393,6 +429,24 @@ koma.rule.window({
     focusable = false,
 })
 
+-- 6. Per-Window Visual Rice Overrides (opacity, animation style, blur/shadow suppression, border color)
+koma.rule.window({
+    name = "terminal-rice",
+    matches = { { app_id = "^(foot|ghostty)$" } },
+    opacity = 0.96,
+    inactive_opacity = 0.84,
+    animation = "popin 88%",
+    border_color = "#7dcfffff",
+})
+
+koma.rule.window({
+    name = "video-player-clean",
+    matches = { { app_id = "^mpv$" } },
+    no_blur = true,
+    no_shadow = true,
+    inactive_opacity = 1.0,
+})
+
 ```
 
 ### 4.2 Layer-Shell Rules (`koma.rule.layer`)
@@ -448,6 +502,11 @@ Every `ctx:*` method verifies the caller's `WorkspaceLease` `Epoch` before and a
 | `ctx:paste_mime(mime, data)` | `WaitDamageSettle` | Writes structured `text/tab-separated-values` (multi-cell spreadsheet grids) or `text/html` into `vSeat`'s isolated `wl_data_device` and triggers paste without touching human `seat0` clipboard. | 
 | `ctx:sleep_ms(duration_ms)` | `SleepTimer` | Suspends coroutine on a `calloop` monotonic timer without blocking compositor frames. | 
 | `ctx:wait_settle(opts?)` | `WaitDamageSettle` | Suspends until target window `wl_surface.damage` stays quiet for `quiet_ms` (default `40 ms`, capped by `timeout_ms = 500 ms`). | 
+| `ctx:focused_window()` | Synchronous (`DesktopQuerySnapshot`) | Returns `LuaWindowInfo\|nil` (`{ id, app_id, title, workspace, floating, fullscreen, focused }`). Protected window titles are redacted to `"[protected]"`. |
+| `ctx:windows()` | Synchronous (`DesktopQuerySnapshot`) | Returns `LuaWindowInfo[]` for visible/scoped windows (`Offscreen` agent workspace windows are excluded from human snapshots). |
+| `ctx:outputs()` | Synchronous (`DesktopQuerySnapshot`) | Returns `LuaOutputInfo[]` (`{ name, width, height, scale, refresh_mhz, active_workspace, focused }`). |
+| `ctx:workspaces()` | Synchronous (`DesktopQuerySnapshot`) | Returns `LuaWorkspaceInfo[]` (`{ id, name, layout, presentation, focused_window_id, window_count, active }`). |
+| `ctx:dispatch(action)` | `QueuedHostAction::DispatchAction` | Enqueues any compiled `koma.act.*` descriptor (including `koma.act.window.focus(win_id)` and `koma.act.workspace.set_layout(mode, workspace?)`) checked against `ws.lease.epoch()`. Nested `LuaCallback` targets are rejected with `RuntimeError`. |
 
 ### 5.3 Defining Parameterized Macros (`koma.macro.define`)
 
@@ -570,15 +629,41 @@ Users can record repetitive workflows interactively without writing coordinates 
 
 ### 6.1 Compositor Event Hooks (`koma.on`)
 
-`koma.on(event_name, callback)` registers lightweight event listeners executed inside `Phodopus`:
+`koma.on(event_name, function(ctx, event) ... end)` registers lightweight, fuel-metered Ring 0 lifecycle listeners executed inside `Phodopus` (`event_dispatch_depth` capped at `4` to prevent recursive hook loops):
 
-* `"compositor.start"`: Fired once when Wayland socket & D-Bus environment are ready (ideal for starting `waybar`, `swww-daemon`, `fcitx5 -d`, `koma-overview --daemon`).
+* `"compositor.start"`: Fired once after event-loop initialization when Wayland socket & D-Bus environment are ready (guarded by `KOMA_SKIP_AUTOSTART`; ideal for starting `waybar`, `swww-daemon`, `fcitx5 -d`, `koma-overview --daemon`).
 
-* `"monitor.added"` / `"monitor.removed"`: Hotplug callbacks receiving `{ name, make, model, serial }`.
+* `"config.reloaded"`: Fired after `config_watcher` hot-reloads `init.lua` via atomic shadow swap.
 
-* `"lease.preempted"`: Fired when the human presses `Mod + G` (`{ ws_name, previous_holder, new_epoch }`).
+* `"window.mapped"`: Fired when an unmapped window promotes to mapped on a headed workspace (`{ id, app_id, title_redacted, workspace, floating }`, with protected titles redacted to `"[protected]"`).
 
-* `"window.opened"` / `"window.closed"`: Receives immutable window metadata `{ win_id, app_id, title, ws_name }`.
+* `"window.closed"`: Fired on window unmap/destroy (`{ id, app_id, workspace }`).
+
+* `"window.focused"`: Fired on focus change (`{ id, app_id, workspace }`).
+
+* `"workspace.focused"`: Fired on headed workspace switch (`{ id, name, output, layout }`).
+
+* `"output.changed"`: Fired by `output_management` (`{ name, event, width, height, scale }`).
+
+```lua
+-- Run-or-Raise terminal via MacroContext query + dispatch
+koma.bind("Mod + Shift + T", function(ctx)
+    for _, win in ipairs(ctx:windows()) do
+        if win.app_id == "foot" then
+            ctx:dispatch(koma.act.window.focus(win.id))
+            return
+        end
+    end
+    ctx:dispatch(koma.act.spawn({ "foot" }))
+end, { desc = "Focus existing foot or spawn a new one" })
+
+-- Switch to horizontal scrolling layout automatically on ultrawide monitors
+koma.on("output.changed", function(ctx, ev)
+    if ev.width and ev.width >= 3440 then
+        ctx:dispatch(koma.act.workspace.set_layout("scrolling"))
+    end
+end)
+```
 
 ### 6.2 Minimal Production `~/.config/koma/init.lua`
 
