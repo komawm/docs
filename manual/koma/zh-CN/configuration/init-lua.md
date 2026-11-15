@@ -109,3 +109,33 @@ koma.bind("Mod + O", koma.act.overview.toggle(), { desc = "Toggle koma-overview"
 | `koma.mode(name, spec)` | 定义可通过 `koma.act.mode` 切换的快捷键子模式 |
 | `koma.on(event, fn)` | 注册受指令配额保护的生命周期事件回调 |
 | `koma.macro.define(spec)` | 定义零 Token 参数化 GUI 宏并动态暴露给 `koma-mcp` |
+
+## 实时桌面快照查询（`MacroContext`）与生命周期钩子（`koma.on`）
+
+快捷键回调与 `koma.on` 监听器会收到由 Ring 0 预先捕获的只读 `DesktopQuerySnapshot` 支撑的 `ctx`（`MacroContext`）。受保护窗口的标题会被自动脱敏为 `"[protected]"`，且无头离屏智能体工作区（`Offscreen`）窗口对人类侧快照不可见：
+
+- `ctx:focused_window()` — 返回当前聚焦窗口信息表（`id`、`app_id`、`title`、`workspace`、`floating`、`fullscreen`、`focused`）或 `nil`。
+- `ctx:windows()` / `ctx:outputs()` / `ctx:workspaces()` — 返回作用域内的窗口、输出显示器与工作区只读列表。
+- `ctx:dispatch(action)` — 提交任意已编译的 `koma.act.*` 动作（如 `koma.act.window.focus(win_id)` 与 `koma.act.workspace.set_layout(mode, workspace?)`；禁止嵌套 Lua 回调）。
+
+Ring 0 支持的规范 `koma.on(event_name, function(ctx, event) ... end)` 事件（最大递归深度 `4`）：`"compositor.start"`、`"config.reloaded"`、`"window.mapped"`、`"window.closed"`、`"window.focused"`、`"workspace.focused"` 与 `"output.changed"`。
+
+```lua
+-- Run-or-Raise：已有 foot 则直接聚焦，否则启动新终端
+koma.bind("Mod + Shift + T", function(ctx)
+    for _, win in ipairs(ctx:windows()) do
+        if win.app_id == "foot" then
+            ctx:dispatch(koma.act.window.focus(win.id))
+            return
+        end
+    end
+    ctx:dispatch(koma.act.spawn({ "foot" }))
+end, { desc = "Focus foot or launch it" })
+
+-- 检测到超宽带鱼屏接入或变更时自动切换为 scrolling 横向布局
+koma.on("output.changed", function(ctx, ev)
+    if ev.width and ev.width >= 3440 then
+        ctx:dispatch(koma.act.workspace.set_layout("scrolling"))
+    end
+end)
+```

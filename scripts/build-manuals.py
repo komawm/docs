@@ -409,8 +409,8 @@ def build_deterministic_targz(
         for rel in sorted(expected_paths):
             raw_text = (loc_root / rel).read_text(encoding="utf-8")
             rendered_text = render_markdown_csp_safe(raw_text)
-            data = rendered_text.encode("utf-8")
-            rendered_map[rel] = data
+            rendered_map[rel] = rendered_text.encode("utf-8")
+            data = raw_text.encode("utf-8")
             info = tarfile.TarInfo(name=f"{locale}/{rel}")
             info.size = len(data)
             info.mode = 0o644

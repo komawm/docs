@@ -109,3 +109,33 @@ koma.bind("Mod + O", koma.act.overview.toggle(), { desc = "Toggle koma-overview"
 | `koma.mode(name, spec)` | `koma.act.mode` で切り替えるサブマップモードを定義 |
 | `koma.on(event, fn)` | 燃料計測付き Lua コールバックをイベントへ登録 |
 | `koma.macro.define(spec)` | トークン消費ゼロのパラメータ化 GUI マクロを定義し `koma-mcp` へ公開 |
+
+## 動的スナップショット参照（`MacroContext`）とイベントフック（`koma.on`）
+
+キーバインドのコールバックや `koma.on` リスナーは、Ring 0 で事前に取得された読み取り専用 `DesktopQuerySnapshot` を参照する `ctx`（`MacroContext`）を受け取ります。保護対象ウィンドウのタイトルは `"[protected]"` へマスクされ、エージェント用オフスクリーン（`Offscreen`）ワークスペースのウィンドウは人間側クエリから隔離されます。
+
+- `ctx:focused_window()` — フォーカス中ウィンドウのテーブル（`id`、`app_id`、`title`、`workspace`、`floating`、`fullscreen`、`focused`）または `nil` を返します。
+- `ctx:windows()` / `ctx:outputs()` / `ctx:workspaces()` — スコープ内のウィンドウ・出力・ワークスペース一覧を返します。
+- `ctx:dispatch(action)` — コンパイル済み `koma.act.*` アクション（`koma.act.window.focus(win_id)` や `koma.act.workspace.set_layout(mode, workspace?)` 等）をキューへ投入します（ネストした Lua コールバックは拒否）。
+
+Ring 0 で発火する正規 `koma.on(event_name, function(ctx, event) ... end)` イベント（再帰深度上限 `4`）は `"compositor.start"`、`"config.reloaded"`、`"window.mapped"`、`"window.closed"`、`"window.focused"`、`"workspace.focused"`、`"output.changed"` です。
+
+```lua
+-- Run-or-Raise：既存の foot を前面フォーカス、未起動なら起動
+koma.bind("Mod + Shift + T", function(ctx)
+    for _, win in ipairs(ctx:windows()) do
+        if win.app_id == "foot" then
+            ctx:dispatch(koma.act.window.focus(win.id))
+            return
+        end
+    end
+    ctx:dispatch(koma.act.spawn({ "foot" }))
+end, { desc = "Focus foot or launch it" })
+
+-- ウルトラワイドモニター接続時に scrolling レイアウトへ自動切替
+koma.on("output.changed", function(ctx, ev)
+    if ev.width and ev.width >= 3440 then
+        ctx:dispatch(koma.act.workspace.set_layout("scrolling"))
+    end
+end)
+```

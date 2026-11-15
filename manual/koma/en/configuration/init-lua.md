@@ -109,3 +109,33 @@ koma.bind("Mod + O", koma.act.overview.toggle(), { desc = "Toggle koma-overview"
 | `koma.mode(name, spec)` | Declares submaps / resize modes entered via `koma.act.mode` |
 | `koma.on(event, fn)` | Subscribes fuel-metered Lua callbacks to compositor lifecycle events |
 | `koma.macro.define(spec)` | Registers zero-token parameterized GUI macros exposed dynamically to `koma-mcp` |
+
+## Dynamic State Snapshots (`MacroContext`) & Lifecycle Hooks (`koma.on`)
+
+Lua keybind callbacks and `koma.on` listeners receive a sandboxed `ctx` (`MacroContext`) backed by an immutable `DesktopQuerySnapshot` captured in Ring 0 before dispatch (protected window titles are redacted to `"[protected]"` and headless `Offscreen` windows stay isolated from human queries):
+
+- `ctx:focused_window()` — Focused window table (`id`, `app_id`, `title`, `workspace`, `floating`, `fullscreen`, `focused`) or `nil`.
+- `ctx:windows()` / `ctx:outputs()` / `ctx:workspaces()` — Read-only tables of scoped windows, outputs, and workspaces.
+- `ctx:dispatch(action)` — Queues any compiled `koma.act.*` action (for example `koma.act.window.focus(win_id)` or `koma.act.workspace.set_layout(mode, workspace?)`; nested Lua callbacks are rejected).
+
+Canonical Ring 0 `koma.on(event_name, function(ctx, event) ... end)` hooks (re-entrancy depth capped at `4`): `"compositor.start"`, `"config.reloaded"`, `"window.mapped"`, `"window.closed"`, `"window.focused"`, `"workspace.focused"`, and `"output.changed"`.
+
+```lua
+-- Run-or-Raise terminal binding
+koma.bind("Mod + Shift + T", function(ctx)
+    for _, win in ipairs(ctx:windows()) do
+        if win.app_id == "foot" then
+            ctx:dispatch(koma.act.window.focus(win.id))
+            return
+        end
+    end
+    ctx:dispatch(koma.act.spawn({ "foot" }))
+end, { desc = "Focus foot or launch it" })
+
+-- Switch to scrolling strip layout automatically on ultrawide displays
+koma.on("output.changed", function(ctx, ev)
+    if ev.width and ev.width >= 3440 then
+        ctx:dispatch(koma.act.workspace.set_layout("scrolling"))
+    end
+end)
+```
