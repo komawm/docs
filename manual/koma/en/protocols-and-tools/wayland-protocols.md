@@ -1,6 +1,6 @@
-# Wayland Protocols, Portals & IME
+# Panels, Portals, IME & Apps
 
-Koma implements a broad Wayland protocol matrix directly on top of [Smithay](https://github.com/Smithay/smithay), enforcing sandbox filtering (`ClientState { restricted: true }`) for `wp_security_context_manager_v1` and `komactl sandbox` jailed sockets.
+Koma implements core Wayland protocols for panels, lockscreens, portals, remote desktop, and input methods, while marking `wp_security_context_manager_v1` and `komactl sandbox` sockets as restricted so jailed clients cannot access privileged globals.
 
 ## Shell, Surface & Output Protocols
 
@@ -12,7 +12,7 @@ Koma implements a broad Wayland protocol matrix directly on top of [Smithay](htt
 | `zwlr_output_manager_v1` | Dynamic multi-monitor inspection, `test`, and `apply` (`kanshi`, `wdisplays`) | Restricted from sandboxed/jailed clients |
 | `zwlr_output_power_manager_v1` & `zwlr_gamma_control_manager_v1` | DPMS sleep/wake (`wlopm`) and night-light / color ramps (`wlsunset`, `gammastep`) | Filtered out for restricted clients |
 | `wp_fractional_scale_manager_v1` & `wp_viewporter` | Sharp fractional HiDPI scaling (`1.25`, `1.5`, `1.6`, `"auto"`) | Per-output scale delivery |
-| `wp_single_pixel_buffer_v1`, `wp_presentation` & `wl_shm` formats | Solid widget surfaces (`ironbar`/`quickshell`), scanout frame timing, `Abgr8888`/`Xbgr8888` buffers (`Waydroid`) | Exported to graphical clients cleanly |
+| `wp_single_pixel_buffer_v1`, `wp_presentation` & `wl_shm` formats | Solid widget surfaces (`ironbar`/`quickshell`), scanout frame timing, `Abgr8888`/`Xbgr8888` buffers (`Waydroid`) | Exposed to graphical clients |
 | `xdg_activation_v1` & `xdg_toplevel_icon_v1` | Cross-client focus tokens (`10 s` TTL) and validated window icons | Jail-scoped token validation & lock-screen deferral |
 | `zwlr_foreign_toplevel_manager_v1` & `ext_foreign_toplevel_list_v1` | Taskbar / panel window list & activate/minimize/close controls | Filtered from restricted clients & guarded during session lock |
 | `zwlr_virtual_pointer_manager_v1` & `zwp_keyboard_shortcuts_inhibit_manager_v1` | Remote desktop pointer injection and shortcut pass-through (`RustDesk`) | Restricted from jailed clients; `Mod + G` preemption and VT switches remain un-inhibitable |
@@ -32,8 +32,8 @@ Koma natively implements the modern Wayland CJK/IME stack without X11 dependenci
 - **`wl_touch` & `wp_cursor_shape_manager_v1`**: Multi-touch gesture/surface routing and compositor-rendered cursor themes.
 
 > [!TIP]
-> **IME vs. Agent Text Injection**: Interactive typing uses `Fcitx5` / `IBus` over `text-input-v3` + `input-method-v2`, whereas AI automation via `koma-agent.sock` uses `koma-seat`'s `TextInjectStrategy` (`xkb_keymap` / `text_input_v3` / `clipboard` Ctrl+Shift+V) so agent text never triggers human IME candidate popups.
+> **IME vs. Automated Text Injection**: Interactive typing uses `Fcitx5` / `IBus` over `text-input-v3` and `input-method-v2`, whereas automation over `koma-agent.sock` injects text directly via keymap, `text-input-v3`, or clipboard paste (`Ctrl+Shift+V`) so automated input never triggers interactive IME candidate popups.
 
 ## `wp_security_context_manager_v1` & Jailed Clients
 
-Both Wayland-native `wp_security_context_manager_v1` (used by Flatpak / `bubblewrap`) and `komactl sandbox` attach `ClientState { restricted: true }`. Restricted connections cannot bind privileged globals (`zwlr_layer_shell_v1`, `zwlr_screencopy_manager_v1`, `zwlr_data_control_manager_v1`, `zwp_virtual_keyboard_manager_v1`, `ext_session_lock_manager_v1`, `zwlr_output_manager_v1`, or `wp_security_context_manager_v1` itself).
+Both Wayland-native `wp_security_context_manager_v1` (used by Flatpak / `bubblewrap`) and `komactl sandbox` mark client connections as restricted. Restricted connections cannot bind privileged globals (`zwlr_layer_shell_v1`, `zwlr_screencopy_manager_v1`, `zwlr_data_control_manager_v1`, `zwp_virtual_keyboard_manager_v1`, `ext_session_lock_manager_v1`, `zwlr_output_manager_v1`, or `wp_security_context_manager_v1` itself).
