@@ -139,6 +139,13 @@ jobs:
                 "$surface_dir/${rev_dir}/${loc}.tar.gz" \
                 "application/gzip" \
                 "public, max-age=31536000, immutable"
+              while IFS= read -r -d '' page_json; do
+                rel_json="${page_json#./}"
+                r2_put "manual/${rel_json}" \
+                  "$rel_json" \
+                  "application/json; charset=utf-8" \
+                  "public, max-age=300"
+              done < <(find "${surface_dir}/${loc}" -type f -name '*.json' -print0 | LC_ALL=C sort -z)
             done
             r2_put "manual/${surface_dir}/latest.json" \
               "$surface_dir/latest.json" \

@@ -46,6 +46,11 @@ path = "configuration/window-rules.md"
 title = { en = "Window Rules & Protected Surfaces", "zh-CN" = "窗口规则与受保护表面", ja = "ウィンドウルールと保護サーフェス" }
 
 [[sections.items]]
+slug = "animations-and-rice"
+path = "configuration/animations-and-rice.md"
+title = { en = "Hooke Spring Physics, Bezier Curves & Ricing", "zh-CN" = "胡克弹簧物理、贝塞尔曲线与视觉美化", ja = "フックの法則バネ物理・ベジェ曲線・外観カスタマイズ" }
+
+[[sections.items]]
 slug = "lua-types"
 path = "configuration/lua-types.md"
 title = { en = "LuaLS Type Completion (koma-types)", "zh-CN" = "LuaLS 类型补全接入 (koma-types)", ja = "LuaLS 型補完の導入 (koma-types)" }
