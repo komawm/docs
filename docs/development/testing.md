@@ -16,7 +16,7 @@ The local host runs Arch Linux with Hyprland and a dedicated GPU. Check device, 
 
 ## 3. Disposable VM sessions
 
-Use QEMU with a writable disk overlay and isolated test data. Discover installer images via `ISO_PATH`; never bake a host mount or a particular ISO filename into repository configuration. The locally observed image inventory includes Arch, Debian, Fedora KDE and openSUSE; other OS images do not establish a supported target.
+Use QEMU with a writable disk overlay and isolated test data. Discover installer images via `ISO_PATH`; never bake a host mount or a particular ISO filename into repository configuration. The packaging harnesses cover both `vm/arch-vm.sh` + `vm/koma-smoke.sh` (Arch Linux package install and live `koma --tty` Wayland protocol smoke) and `vm/freebsd-vm.sh` (FreeBSD `15.1-RELEASE` unattended ZFS/UFS installation and `cargo check`/`cargo test` portability verification). Locally observed images also include Debian, Fedora KDE, and openSUSE; other OS images do not establish a supported target.
 
 Check KVM access, QEMU graphics/display options, guest kernel/userspace, seat/session manager and virtual GPU explicitly. Software emulation may serve limited smoke tests, but cannot stand in for hardware timing or GPU acceptance. Preserve the ISO identity/hash, QEMU invocation, guest installation notes, overlay location and screenshots/logs in ignored retained evidence. Do not modify source ISO images.
 
