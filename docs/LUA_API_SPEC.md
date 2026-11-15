@@ -501,6 +501,9 @@ Every `ctx:*` method verifies the caller's `WorkspaceLease` `Epoch` before and a
 | `ctx:sequence(chords, gap_ms)` | `SleepTimer` between steps | Dispatches sequential ribbon/modal mnemonics (e.g., `{ "Alt+H", "A", "C" }` in Excel/WPS) with exact cadence. | 
 | `ctx:key_down(key)` / `ctx:key_up(key)` | Synchronous | Holds or releases a modifier/key; tracked in `vSeat`'s shadow ledger for automatic cleanup on abort. | 
 | `ctx:move_to(pos, kinematics?)` | `PointerTrajectory` | Moves `vSeat` pointer using `KomaKinematicsSpec`: `"instant"`, `"minimum_jerk"`, `"spring"` / `"hooke"` / `"hooke_spring"`, or `"bezier"`. | 
+| `ctx:move_path(waypoints, opts?)` | `PointerTrajectory` | Moves along multi-waypoint `KomaAnchorPoint[]` using `KomaPathSplineKind` (`"auto" \| "catmull_rom" \| "bezier"`) at `250 Hz` adaptive sub-frame resampling. |
+| `ctx:stroke_path(spec)` / `ctx:path(spec)` | `PointerTrajectory` + `SleepTimer` | Executes spline-interpolated pointer motion or held-button drag strokes (`KomaPathSpec` with `button?`, `hold_before_move_ms?`, `hold_before_release_ms?`). |
+| `ctx:settle_cursor(immediate?)` | `PointerTrajectory` | Parks the virtual agent cursor indicator (`KomaAgentCursorSpec` with `label_enabled?`) cleanly after a macro sequence. |
 | `ctx:click(pos, opts?)` | `PointerTrajectory` + `SleepTimer` | Moves to `pos` and clicks (`button = "left" | "right" | "middle"`, `clicks = 1 | 2 | 3`, `hold_ms = 25`). | 
 | `ctx:drag(spec)` | `PointerTrajectory` + `SleepTimer` | Executes press -> `hold_before_move_ms` -> smooth trajectory (`from` -> `to`) -> `hold_before_release_ms` -> release (essential for ruler sliders, timeline scrubbing, and gizmo drags). | 
 | `ctx:scroll(spec)` | `SleepTimer` | Emits discrete wheel clicks or smooth `wl_pointer.axis_v120` scroll (`dx`, `dy`, `steps`, `step_ms`). | 

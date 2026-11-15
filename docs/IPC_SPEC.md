@@ -340,7 +340,13 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
 ```
 
-* **Device & Coordinate Modes**: `vseat.pointer_move`, `vseat.click`, and `vseat.drag` accept `"device": "pointer" | "relative" | "tablet"` (driving [`wl_pointer`](https://wayland.app/protocols/wayland), `zwp_relative_pointer_v1`, or [`tablet-v2`](https://wayland.app/protocols/tablet-v2) respectively) and `"profile": "instant" | "minimum_jerk" | "spring" | "hooke" | "hooke_spring" | "bezier"` with optional Hooke/Bezier fields (`mass`, `damping`, `damping_ratio`, `stiffness`, `epsilon`, `curve`, `bezier`, `duration_ms`, `arc_curvature`).
+* **Device & Coordinate Modes**: `vseat.pointer_move`, `vseat.click`, and `vseat.drag` accept `"device": "pointer" | "relative" | "tablet"` (driving [`wl_pointer`](https://wayland.app/protocols/wayland), `zwp_relative_pointer_v1`, or [`tablet-v2`](https://wayland.app/protocols/tablet-v2) respectively) and `"profile": "instant" | "minimum_jerk" | "spring" | "hooke" | "hooke_spring" | "bezier"` with optional Hooke/Bezier fields (`mass`, `damping`, `damping_ratio`, `stiffness`, `epsilon`, `curve`, `bezier`, `duration_ms`, `arc_curvature`). `vseat.drag` routes button presses/releases and motion cleanly through Smithay `ClickGrab`, and `vseat.click` accepts optional `modifiers` and `label`.
+
+* **Extended Precision & Visual Indicator RPCs (`v0.0.1`)**:
+  * `vseat.path` / `vseat.stroke`: Multi-waypoint trajectories (`"spline": "auto" | "catmull_rom" | "bezier"`, centripetal $\alpha = 0.5$ interpolation, `250 Hz` adaptive sub-frame resampling, optional mouse `button` hold for spline drawing).
+  * `vseat.relative_move`, `vseat.wheel`, `vseat.hit_test`, `vseat.cursor_label`, and `vseat.cursor_settle`: Relative pointer deltas, wheel scrolling, surface hit-testing without actuation, floating `LabelPill` + `caret_rect` caption control, and smooth cursor settling.
+  * `DeliverySemantics`: IPC errors populate `disposition` (`DeliveryDisposition` + `RetryDisposition`) so callers distinguish `NotDelivered` / `DeliveryUncertain` from verified execution.
+  * `koma-mcp` stdio server lazily connects to `koma-agent.sock`, auto-detects `Content-Length` vs `NDJSON` framing per message, and exposes all 17 core tools (`koma_ping`..`koma_cursor_label`).
 
 * **`vseat.key`**: `{ "ws_id": "ws_01", "expected_epoch": 4, "modifiers": ["Ctrl", "Shift"], "key": "End", "action": "tap" | "down" | "up", "hold_ms": 30 }`.
 

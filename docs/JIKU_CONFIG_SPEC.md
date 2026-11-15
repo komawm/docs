@@ -125,12 +125,13 @@ Configures `jiku box classify` batch evaluation over `~/JikuBox/` using `Decisio
 | `decompose_rubrics_to_noul` | `bool` | `true` | Automatically decomposes coarse `Score` rubrics into `5..=10` binary `Yes/No` (`noul`) checklist questions for higher calibration. |
 | `two_stage_ranking` | `bool` | `true` | Runs binary `noul` coarse screening before fine-grained rubric scoring. |
 
-### 2.6 `[memory]`, `[notify]` & Progressive Optional Modules (`[tts]`, `[avatar]`)
+### 2.6 `[context]`, `[memory]`, `[notify]` & Progressive Optional Modules (`[tts]`, `[avatar]`)
 
+* **`[context]` (`ContextConfig`)**: `max_context_tokens = 8192`, `reserved_output_tokens = 768`, `min_output_tokens = 256`, `compaction_trigger_ratio = 0.72`, `image_token_estimate = 512`, `keep_recent_images = 1`, `a11y_max_entries_small_ctx = 28` (plus `[koma] hover_glide_ms = 140`) drive the 4-stage `context_budget` compaction waterfall inspectable via `jiku context inspect`.
 * **`[memory]`**: `backend = "sqlite_fts5"` (default), `l0_frame_ring_size = 4`, `fts5_rerank_with_decisions = true` (reranks top-`K` FTS5 candidates via `DecisionBackend` using `NativeDecisionsApi` or `EmulatedStructuredTextModel`), `stage_new_skills = true`, optional `external_mcp_command` for external `MemoryProvider` bridging.
 * **`[notify]`**: `desktop_dbus = true` (`org.freedesktop.Notifications` -> `swaync`), `urgency_on_verification = "critical"`, optional `webhook_url_env`.
-* **`[tts]` (`jiku-tts` — Progressive Optional Module, Disabled by Default)**: `enabled = false` (default), `provider = "voicevox" | "piper" | "openai_speech"`, `endpoint = "http://127.0.0.1:50021"`, `speaker_id = 3`, `speak_on = ["task_completed", "verification_needed"]` (decoupled optional module used in turn mode when explicitly enabled; bypassed in native `24 kHz PCM` `jiku live` mode).
-* **`[avatar]` (Live2D / VRM Subscriber Bus — Progressive Optional Module, Disabled by Default)**: `emit_cues = false` (default), `expression_palette_size = 255` — when explicitly enabled (`emit_cues = true`), broadcasts real-time `AvatarCue` frames (emotion tag, discrete `expression_id` / `motion_id` up to `255` options, `(u, v)` virtual cursor gaze, and either VOICEVOX mora envelopes or live `24 kHz` RMS/frequency lip-sync envelopes) to any subscribed Live2D / VRM `wlr-layer-shell` companion client on `jiku.sock`.
+* **`[tts]` (`jiku-tts` — Progressive Optional Module, Disabled by Default)**: `enabled = false` (default), `provider = "voicevox" | "openai_speech" | "espeak_ng" | "irodori" | "noop"`, `endpoint`, `voice`, `speaker_id = 3`, `audio_sink = "auto"`, `speak_on = ["task_completed", "verification_needed"]` (extracts 20 ms RMS lip-sync cues with barge-in playback support).
+* **`[avatar]` (`AvatarToml` — Companion Stage & EventBus)**: `emit_cues = true`, `idle_gaze_follow_vseat = true`, driving `AvatarCue` / `Snapshot` packets on `jiku avatar serve` (HTTP + WebSocket VRM stage; native `wlr-layer-shell` `MMD` / `Inochi2D` overlays remain deferred to `v0.1.0`).
 
 ### 2.7 Example `config.toml` Snippet
 
@@ -218,9 +219,13 @@ jiku run --workspace agent:work "Export ~/JikuBox/draft.odt to PDF in LibreOffic
 # Fast deterministic window/workspace inspection via komactl + SKILL.md for external coding agents
 komactl tree --json
 
-# Expose Jiku as an MCP server over stdio for Claude Code, Codex, GitHub Copilot, Cursor, or OpenCode
+# Expose Jiku as a 12-tool dual-framing (Content-Length + NDJSON) MCP server over stdio for Claude Code, Codex, GitHub Copilot, Cursor, pi, or OpenCode
 # (--stateless disables episode history recall when the external master coding agent manages its own memory)
 jiku mcp --stateless
+jiku a11y snapshot --json
+jiku context inspect --max-tokens 4096
+jiku bench run --offline
+jiku avatar serve --bind 127.0.0.1:4190
 
 # Run batch classification, tagging & rubric screening on ~/JikuBox/
 # (Uses NativeDecisionsApi 0-output-token pass when gemini-decision-1 is configured, or EmulatedStructuredTextModel fallback)
