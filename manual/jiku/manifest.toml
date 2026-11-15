@@ -1,0 +1,45 @@
+surface = "jiku"
+version = "0.0.1"
+locales = ["en", "zh-CN", "ja"]
+
+[[sections]]
+id = "getting-started"
+title = { en = "Getting Started", "zh-CN" = "快速入门", ja = "はじめに" }
+
+[[sections.items]]
+slug = "overview"
+path = "getting-started/overview.md"
+title = { en = "Three-Driver Architecture", "zh-CN" = "Three-Driver 三驱动编排架构", ja = "Three-Driver オーケストレーション設計" }
+
+[[sections.items]]
+slug = "installation-and-quickstart"
+path = "getting-started/installation-and-quickstart.md"
+title = { en = "Installation, API Keys & First Run", "zh-CN" = "安装、密钥配置与首次运行", ja = "インストール・API キー設定・初回起動" }
+
+[[sections.items]]
+slug = "configuration"
+path = "getting-started/configuration.md"
+title = { en = "Daemon Config, DecisionCompiler & TTS", "zh-CN" = "守护进程配置、DecisionCompiler 与语音", ja = "デーモン設定・DecisionCompiler・TTS" }
+
+[[sections]]
+id = "memory-and-mcp"
+title = { en = "Memory & MCP", "zh-CN" = "记忆系统与 MCP", ja = "メモリ階層と MCP" }
+
+[[sections.items]]
+slug = "memory-tiers"
+path = "memory-and-mcp/memory-tiers.md"
+title = { en = "L0–L2 Memory Tiers & Staged Skills", "zh-CN" = "L0–L2 三层记忆与技能审批门禁", ja = "L0–L2 記憶階層とスキル承認ゲート" }
+
+[[sections.items]]
+slug = "cli-mcp-and-jikubox"
+path = "memory-and-mcp/cli-mcp-and-jikubox.md"
+title = { en = "jiku CLI, MCP Server & JikuBox", "zh-CN" = "jiku 命令行、MCP 服务与 JikuBox", ja = "jiku CLI・MCP サーバー・JikuBox" }
+
+[[sections]]
+id = "roadmap-and-safety"
+title = { en = "Security & Roadmap", "zh-CN" = "安全边界与路线图", ja = "セキュリティとロードマップ" }
+
+[[sections.items]]
+slug = "security-and-roadmap"
+path = "roadmap-and-safety/security-and-roadmap.md"
+title = { en = "Zero-Unsafe Safety & v0.1.0 Roadmap", "zh-CN" = "零 Unsafe 安全边界与 v0.1.0 路线图", ja = "ゼロ Unsafe 安全境界と v0.1.0 ロードマップ" }
