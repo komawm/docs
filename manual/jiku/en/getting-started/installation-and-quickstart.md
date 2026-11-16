@@ -25,6 +25,11 @@ curl -fsSLO https://cdn.komawm.org/install/jiku/jiku.rb && brew install --formul
 bun add -g @koma-wm/jiku@development
 ```
 
+The npm channel is published by the `komawm/packaging` CD workflow on explicit
+dispatch, so a given version may not be on the registry yet. Until the first
+`v0.0.x` npm publication runs, use the AUR package, the distro packages, or the
+release tarballs above; a missing npm version is expected, not a broken install.
+
 ### Build from Source
 
 ```bash
@@ -51,9 +56,12 @@ npx skills add komawm/koma --skill koma-desktop -g
 ```
 
 The skill is MIT licensed and carries its own `LICENSE`, independent of the
-`GPL-3.0-or-later` product license, so a copied skill stays self-contained. Once
-`@koma-wm/jiku` is installed as a dependency, `npx skills experimental_sync` also
-links the bundled skill from the package.
+`GPL-3.0-or-later` product license, so a copied skill stays self-contained.
+
+If you installed Jiku as a project dependency (`bun add -d @koma-wm/jiku`),
+`npx skills experimental_sync` links the skill bundled in the package instead.
+`experimental_sync` reads the project's dependencies, so a global install is not
+enough for that route.
 
 ## API Keys & Environment Variables
 
@@ -103,7 +111,6 @@ Both `jiku mcp` (12 orchestration tools) and `koma-mcp` (17 compositor tools) au
     "koma": {
       "type": "local",
       "command": ["koma-mcp"],
-      "environment": { "KOMA_CAPABILITY_TOKEN": "koma_cap_..." },
       "enabled": true
     },
     "jiku": {
@@ -115,8 +122,11 @@ Both `jiku mcp` (12 orchestration tools) and `koma-mcp` (17 compositor tools) au
 }
 ```
 
-Mint the token with `komactl token mint <label>` and export it to the agent host. Never pass
-`--auto-mint-admin` to an agent-controlled MCP server: it would let the agent mint its own grants.
+Mint the token with `komactl token mint <label>` and export it in the shell that starts the
+agent host; `koma-mcp` reads `KOMA_CAPABILITY_TOKEN` from its environment, so the token never has
+to live in configuration. If your host does not inherit the environment, set it in that host's
+own environment block. Never pass `--auto-mint-admin` to an agent-controlled MCP server: it would
+let the agent mint its own grants.
 `jiku status` needs a running Koma session; without one it fails by design, which is not an
 installation error.
 

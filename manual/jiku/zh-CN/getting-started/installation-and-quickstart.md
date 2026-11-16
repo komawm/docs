@@ -25,6 +25,10 @@ curl -fsSLO https://cdn.komawm.org/install/jiku/jiku.rb && brew install --formul
 bun add -g @koma-wm/jiku@development
 ```
 
+npm 渠道由 `komawm/packaging` 的 CD 工作流在显式派发后发布，因此某个版本可能尚未出现在
+registry 上。在首次 `v0.0.x` npm 发布完成前，请使用上面的 AUR 包、发行版包或发布压缩包；
+registry 上查不到版本是预期情况，不是安装故障。
+
 ### 从源码构建
 
 ```bash
@@ -51,8 +55,10 @@ npx skills add komawm/koma --skill koma-desktop -g
 ```
 
 skill 采用 MIT 许可，并自带独立于 `GPL-3.0-or-later` 产品许可的 `LICENSE`，因此被复制的
-skill 仍然自包含。若已将 `@koma-wm/jiku` 作为依赖安装，`npx skills experimental_sync` 也能
-链接包内自带的 skill。
+skill 仍然自包含。
+
+若把 Jiku 装为项目依赖（`bun add -d @koma-wm/jiku`），可用 `npx skills experimental_sync`
+链接包内自带的 skill。`experimental_sync` 读取的是项目依赖，因此全局安装走不了这条路径。
 
 ## API 密钥与环境变量
 
@@ -102,7 +108,6 @@ skill 仍然自包含。若已将 `@koma-wm/jiku` 作为依赖安装，`npx skil
     "koma": {
       "type": "local",
       "command": ["koma-mcp"],
-      "environment": { "KOMA_CAPABILITY_TOKEN": "koma_cap_..." },
       "enabled": true
     },
     "jiku": {
@@ -114,8 +119,10 @@ skill 仍然自包含。若已将 `@koma-wm/jiku` 作为依赖安装，`npx skil
 }
 ```
 
-用 `komactl token mint <label>` 签发令牌并注入智能体宿主。不要给由智能体控制的 MCP
-服务器传 `--auto-mint-admin`，否则智能体可以自行签发权限。`jiku status` 需要 Koma 会话在运行，
+用 `komactl token mint <label>` 签发令牌，并在启动智能体宿主的 shell 中导出。`koma-mcp`
+从环境读取 `KOMA_CAPABILITY_TOKEN`，因此令牌无需写入配置文件；若宿主不继承环境，请在其
+自身的 environment 配置块中设置。不要给由智能体控制的 MCP 服务器传 `--auto-mint-admin`，
+否则智能体可以自行签发权限。`jiku status` 需要 Koma 会话在运行，
 没有会话时的失败是预期行为，不是安装问题。
 
 请安装[智能体 skill](#智能体-skillnpx-skills)，而不是复制 `SKILL.md` 路径；这样智能体才能在

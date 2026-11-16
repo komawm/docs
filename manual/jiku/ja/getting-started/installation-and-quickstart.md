@@ -25,6 +25,11 @@ curl -fsSLO https://cdn.komawm.org/install/jiku/jiku.rb && brew install --formul
 bun add -g @koma-wm/jiku@development
 ```
 
+npm チャネルは `komawm/packaging` の CD ワークフローを明示的にディスパッチしたときに公開されるため、
+特定バージョンがまだレジストリに存在しないことがあります。最初の `v0.0.x` npm 公開が完了するまでは、
+上記の AUR パッケージ、ディストリビューションパッケージ、またはリリース tarball を使用してください。
+npm にバージョンが無いのは想定内であり、インストール不具合ではありません。
+
 ### ソースからのビルド
 
 ```bash
@@ -51,8 +56,12 @@ npx skills add komawm/koma --skill koma-desktop -g
 ```
 
 スキルは MIT ライセンスで、`GPL-3.0-or-later` の製品ライセンスとは独立した `LICENSE` を
-同梱します。コピーされたスキルが単体で完結するためです。`@koma-wm/jiku` を依存関係として
-導入した場合は、`npx skills experimental_sync` でパッケージ内のスキルもリンクできます。
+同梱します。コピーされたスキルが単体で完結するためです。
+
+Jiku をプロジェクト依存関係として導入した場合（`bun add -d @koma-wm/jiku`）は、
+`npx skills experimental_sync` でパッケージ同梱のスキルをリンクできます。
+`experimental_sync` はプロジェクトの依存関係を読むため、グローバルインストールでは
+この経路を使えません。
 
 ## API キーと環境変数
 
@@ -102,7 +111,6 @@ npx skills add komawm/koma --skill koma-desktop -g
     "koma": {
       "type": "local",
       "command": ["koma-mcp"],
-      "environment": { "KOMA_CAPABILITY_TOKEN": "koma_cap_..." },
       "enabled": true
     },
     "jiku": {
@@ -114,9 +122,11 @@ npx skills add komawm/koma --skill koma-desktop -g
 }
 ```
 
-トークンは `komactl token mint <label>` で発行し、エージェントホストへ渡してください。
-エージェントが制御する MCP サーバーに `--auto-mint-admin` を渡してはいけません。エージェントが
-自身の権限を発行できてしまいます。`jiku status` は Koma セッションが動作している必要があり、
+トークンは `komactl token mint <label>` で発行し、エージェントホストを起動するシェルで
+エクスポートしてください。`koma-mcp` は `KOMA_CAPABILITY_TOKEN` を環境から読むため、トークンを
+設定ファイルに書く必要はありません。環境を継承しないホストの場合は、そのホスト自身の
+environment ブロックに設定してください。エージェントが制御する MCP サーバーに
+`--auto-mint-admin` を渡してはいけません。エージェントが自身の権限を発行できてしまいます。`jiku status` は Koma セッションが動作している必要があり、
 無い場合の失敗は仕様でありインストール不具合ではありません。
 
 `SKILL.md` のパスをコピーする代わりに[エージェントスキル](#エージェントスキルnpx-skills)を
