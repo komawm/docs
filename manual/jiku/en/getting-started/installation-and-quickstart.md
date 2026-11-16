@@ -7,7 +7,7 @@
 
 ## Installing `jikud` & `jiku`
 
-Install prebuilt packages from [komawm/packaging](https://github.com/komawm/packaging) (signed APT `jiku` package, AUR `jiku-bin`, Linuxbrew `jiku.rb`, or `.deb`/`.rpm`/`.apk` archives), download the `v0.0.1` release tarballs (`jiku-0.0.1-x86_64-unknown-linux-gnu.tar.gz` or `jiku-0.0.1-aarch64-unknown-linux-gnu.tar.gz`) from [komawm/jiku](https://github.com/komawm/jiku), or build from source.
+Install prebuilt packages from [komawm/packaging](https://github.com/komawm/packaging) (signed APT `jiku` package, AUR `jiku-bin`, Linuxbrew `jiku.rb`, or `.deb`/`.rpm`/`.apk` archives), download the `v0.0.1` release tarballs (`jiku-0.0.1-x86_64-unknown-linux-gnu.tar.gz` or `jiku-0.0.1-aarch64-unknown-linux-gnu.tar.gz`) from [komawm/jiku](https://github.com/komawm/jiku), install the release binaries from npm (`@koma-wm/jiku`), or build from source.
 
 ### Prebuilt Binary Channels (`x86_64` & `aarch64`)
 
@@ -22,13 +22,17 @@ curl -fsSL https://cdn.komawm.org/apt/setup.sh | sudo bash && sudo apt install -
 curl -fsSLO https://cdn.komawm.org/install/jiku/jiku.rb && brew install --formula ./jiku.rb
 
 # npm / Bun (registry scope `@koma-wm`; `komawm` was already registered)
-bun add -g @koma-wm/jiku@development
+bun add -g @koma-wm/jiku
+# or
+npm install -g @koma-wm/jiku
 ```
 
-The npm channel is published by the `komawm/packaging` CD workflow on explicit
-dispatch, so a given version may not be on the registry yet. Until the first
-`v0.0.x` npm publication runs, use the AUR package, the distro packages, or the
-release tarballs above; a missing npm version is expected, not a broken install.
+The registry carries `v0.0.1` for `linux-x64` and `linux-arm64` on glibc, with
+`latest` and `development` both pointing at it. Newer versions appear only after a
+`komawm/packaging` release dispatch, so a version that is not on the registry yet
+is expected rather than a broken install. musl/Alpine, macOS, and Windows are not
+supported; the launcher refuses them with an explicit message. To pin the
+prerelease channel explicitly, use `@koma-wm/jiku@development`.
 
 ### Build from Source
 

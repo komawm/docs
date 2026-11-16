@@ -7,7 +7,7 @@
 
 ## `jikud` と `jiku` のインストール
 
-[komawm/packaging](https://github.com/komawm/packaging) からビルド済みパッケージ（署名付き APT `jiku` パッケージ、AUR `jiku-bin`、Linuxbrew `jiku.rb`、`.deb`/`.rpm`/`.apk` アーカイブ）を導入するか、[komawm/jiku](https://github.com/komawm/jiku) から `v0.0.1` リリースアーカイブ（`jiku-0.0.1-x86_64-unknown-linux-gnu.tar.gz` または `jiku-0.0.1-aarch64-unknown-linux-gnu.tar.gz`）を取得するか、ソースからビルドします。
+[komawm/packaging](https://github.com/komawm/packaging) からビルド済みパッケージ（署名付き APT `jiku` パッケージ、AUR `jiku-bin`、Linuxbrew `jiku.rb`、`.deb`/`.rpm`/`.apk` アーカイブ）を導入するか、[komawm/jiku](https://github.com/komawm/jiku) から `v0.0.1` リリースアーカイブ（`jiku-0.0.1-x86_64-unknown-linux-gnu.tar.gz` または `jiku-0.0.1-aarch64-unknown-linux-gnu.tar.gz`）を取得するか、npm（`@koma-wm/jiku`）のリリースバイナリを導入するか、ソースからビルドします。
 
 ### ビルド済みバイナリチャネル（`x86_64` & `aarch64`）
 
@@ -22,13 +22,16 @@ curl -fsSL https://cdn.komawm.org/apt/setup.sh | sudo bash && sudo apt install -
 curl -fsSLO https://cdn.komawm.org/install/jiku/jiku.rb && brew install --formula ./jiku.rb
 
 # npm / Bun（レジストリスコープ `@koma-wm`。`komawm` は既に登録済み）
-bun add -g @koma-wm/jiku@development
+bun add -g @koma-wm/jiku
+# または
+npm install -g @koma-wm/jiku
 ```
 
-npm チャネルは `komawm/packaging` の CD ワークフローを明示的にディスパッチしたときに公開されるため、
-特定バージョンがまだレジストリに存在しないことがあります。最初の `v0.0.x` npm 公開が完了するまでは、
-上記の AUR パッケージ、ディストリビューションパッケージ、またはリリース tarball を使用してください。
-npm にバージョンが無いのは想定内であり、インストール不具合ではありません。
+レジストリには glibc 向け `linux-x64` と `linux-arm64` の `v0.0.1` が登録されており、`latest` と
+`development` の両方がそれを指しています。新しいバージョンは `komawm/packaging` のリリース
+ディスパッチ後にのみ現れるため、未登録のバージョンはインストール不具合ではなく想定内です。
+musl/Alpine、macOS、Windows は非対応で、ランチャーは明示的なメッセージを出して拒否します。
+プレリリースチャネルを明示的に固定する場合は `@koma-wm/jiku@development` を使用してください。
 
 ### ソースからのビルド
 
@@ -67,11 +70,11 @@ npx skills add komawm/koma --skill koma-desktop -g
 
 `jikud` は `config.toml` または `config.lua` の `api_key_env` に指定された環境変数からのみ認証情報を読み取ります。設定ファイルに生の API キーを直接書かないでください。
 
-| 環境変数 | 既定プロバイダ | 用途 |
-| :--- | :--- | :--- |
-| `JIKU_PLANNER_API_KEY` | `primary`（`[providers.primary]`） | 主プランナー `[roles.planner]` のテキスト/VLM モデルおよび判定時の自動 JSON フォールバック |
-| `JIKU_DECISION_API_KEY` | `decision`（`[providers.decision]`） | 任意の専用判定モデルおよび任意ライブ音声セッション |
-| `KOMA_CAPABILITY_TOKEN` | Koma IPC（`koma-agent.sock`） | `komactl token mint jiku` で発行するスコープ付きリーストークン |
+| 環境変数                | 既定プロバイダ                       | 用途                                                                                       |
+| :---------------------- | :----------------------------------- | :----------------------------------------------------------------------------------------- |
+| `JIKU_PLANNER_API_KEY`  | `primary`（`[providers.primary]`）   | 主プランナー `[roles.planner]` のテキスト/VLM モデルおよび判定時の自動 JSON フォールバック |
+| `JIKU_DECISION_API_KEY` | `decision`（`[providers.decision]`） | 任意の専用判定モデルおよび任意ライブ音声セッション                                         |
+| `KOMA_CAPABILITY_TOKEN` | Koma IPC（`koma-agent.sock`）        | `komactl token mint jiku` で発行するスコープ付きリーストークン                             |
 
 > [!TIP]
 > **専用の判定モデルキーがない場合**: 判定プロバイダのキーが未設定（または `[roles.decision_router]` に任意の OpenAI 互換 / Anthropic / vLLM / Ollama プロバイダを指定）でも、Jiku はエラーを出さず `[roles.planner]` の構造化 JSON 出力へ自動フォールバックします。
