@@ -37,7 +37,7 @@ cargo +1.100.0 build --release --locked -p jikud -p jiku
 
 ## API Keys & Environment Variables
 
-`jikud` reads credentials only from the environment variables configured via `api_key_env` in `config.toml`. Never store raw API keys inside `config.toml`.
+`jikud` reads credentials only from environment variables named by `api_key_env` in `config.toml` or `config.lua`. Never store raw API keys inside configuration files.
 
 | Env Variable | Default Provider | Role |
 | :--- | :--- | :--- |
@@ -46,7 +46,7 @@ cargo +1.100.0 build --release --locked -p jikud -p jiku
 | `KOMA_CAPABILITY_TOKEN` | Koma IPC (`koma-agent.sock`) | Scoped lease token minted with `komactl token mint jiku` |
 
 > [!TIP]
-> **No dedicated decision model key?** If `JIKU_DECISION_API_KEY` is unset (or you assign any OpenAI-compatible, Anthropic, vLLM, or Ollama provider to `[roles.decision_router]`), Jiku falls back to `[roles.planner]` using structured JSON output without error.
+> **No dedicated decision model key?** If the configured decision provider key is unset (or you assign any OpenAI-compatible, Anthropic, vLLM, or Ollama provider to `[roles.decision_router]`), Jiku falls back to `[roles.planner]` using structured JSON output without error.
 
 ## First Run Checklist
 

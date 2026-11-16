@@ -62,7 +62,7 @@ jiku.config{
 Semantics:
 
 - **Field-level merge.** Lua objects merge key by key over the baseline; arrays and scalars replace the previous value. Repeated `jiku.config{...}` calls merge in order.
-- **Sandbox parity.** The configuration VM uses the same Phodopus profile as `init.lua`: an `8 MiB` `gc-arena` heap ceiling, a deterministic instruction budget, and no `io`, `os`, `dofile`, or `loadfile`. It cannot read the environment, so `api_key_env` always stays a variable *name* and raw secrets never enter the configuration file or the Lua heap.
+- **Sandbox parity.** The configuration VM uses the same Phodopus profile as `init.lua`: an `8 MiB` `gc-arena` heap ceiling, a deterministic instruction budget, and no `io`, `os`, `dofile`, or `loadfile`. It cannot read the environment, so credentials must be referenced by `api_key_env` name rather than inlined; keep secrets out of the configuration file and the Lua heap.
 - **Strict schema.** Unknown keys and wrong value types are rejected with the offending field path; a typo never silently becomes a default.
 - **Shared validation.** Both formats deserialize into the same `JikuConfig` and run the identical `validate()` (provider references, grid `2..=255`, live-session invariants).
 

@@ -2,7 +2,7 @@
 
 > **Status**: Architecture Baseline v0.3
 > **Binary & Daemon Names**: `jikud` (Background daemon), `jiku` (Detachable TUI / CLI & `jiku mcp` bridge)
-> **Configuration & State**: `~/.config/jiku/{config.toml | config.lua, init.lua, skills/*.lua}` (Read-Only in sandbox), `~/.local/state/jiku/` (Read-Write), `~/JikuBox/` (Explicit file exchange dropbox)
+> **Configuration & State**: `~/.config/jiku/{config.toml, config.lua, init.lua, skills/*.lua}` (Read-Only in sandbox; `config.lua` is merged over `config.toml` when both exist), `~/.local/state/jiku/` (Read-Write), `~/JikuBox/` (Explicit file exchange dropbox)
 > **Companion Compositor**: `Koma` (`komawm`) via `$XDG_RUNTIME_DIR/koma/<sig>/koma-agent.sock`
 
 ---
