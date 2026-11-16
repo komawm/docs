@@ -58,10 +58,10 @@ npx skills add komawm/koma --skill koma-desktop -g
 スキルは MIT ライセンスで、`GPL-3.0-or-later` の製品ライセンスとは独立した `LICENSE` を
 同梱します。コピーされたスキルが単体で完結するためです。
 
-Jiku をプロジェクト依存関係として導入した場合（`bun add -d @koma-wm/jiku`）は、
-`npx skills experimental_sync` でパッケージ同梱のスキルをリンクできます。
-`experimental_sync` はプロジェクトの依存関係を読むため、グローバルインストールでは
-この経路を使えません。
+インストールしたパッケージが `skills/jiku-desktop-orchestration/` を含むタグから
+ビルドされている場合、プロジェクト依存関係（`bun add -d @koma-wm/jiku`）に対して
+`npx skills experimental_sync` で同梱スキルもリンクできます。スキルカタログ以前の
+タグ（`v0.0.1` を含む）には同梱物が無いため、`npx skills add` を使用してください。
 
 ## API キーと環境変数
 
