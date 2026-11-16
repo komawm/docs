@@ -20,6 +20,9 @@ curl -fsSL https://cdn.komawm.org/apt/setup.sh | sudo bash && sudo apt install -
 
 # Linuxbrew
 curl -fsSLO https://cdn.komawm.org/install/jiku/jiku.rb && brew install --formula ./jiku.rb
+
+# npm / Bun（レジストリスコープ `@koma-wm`。`komawm` は既に登録済み）
+bun add -g @koma-wm/jiku@development
 ```
 
 ### ソースからのビルド
@@ -34,6 +37,22 @@ cd jiku
 cargo +1.100.0 build --release --locked -p jikud -p jiku
 ./target/release/jikud --headless-check
 ```
+
+### エージェントスキル（`npx skills`）
+
+コーディングエージェント向けのインストール可能なスキルを同梱しています。
+
+```bash
+# Jiku: ゴール単位のデスクトップオーケストレーション
+npx skills add komawm/jiku --skill jiku-desktop-orchestration -g
+
+# Koma: ワークスペース、キャプチャ、入力プリミティブ
+npx skills add komawm/koma --skill koma-desktop -g
+```
+
+スキルは MIT ライセンスで、`GPL-3.0-or-later` の製品ライセンスとは独立した `LICENSE` を
+同梱します。コピーされたスキルが単体で完結するためです。`@koma-wm/jiku` を依存関係として
+導入した場合は、`npx skills experimental_sync` でパッケージ内のスキルもリンクできます。
 
 ## API キーと環境変数
 
@@ -82,7 +101,8 @@ cargo +1.100.0 build --release --locked -p jikud -p jiku
   "mcp": {
     "koma": {
       "type": "local",
-      "command": ["koma-mcp", "--auto-mint-admin"],
+      "command": ["koma-mcp"],
+      "environment": { "KOMA_CAPABILITY_TOKEN": "koma_cap_..." },
       "enabled": true
     },
     "jiku": {
@@ -94,4 +114,11 @@ cargo +1.100.0 build --release --locked -p jikud -p jiku
 }
 ```
 
-`jiku/skills/SKILL.md` を参照させることで、Koma の Epoch 保護下で `jiku run`・`jiku decide`・`jiku a11y`・`jiku context inspect`・`jiku box classify`・`jiku memory search` を安全に呼び出せます。
+トークンは `komactl token mint <label>` で発行し、エージェントホストへ渡してください。
+エージェントが制御する MCP サーバーに `--auto-mint-admin` を渡してはいけません。エージェントが
+自身の権限を発行できてしまいます。`jiku status` は Koma セッションが動作している必要があり、
+無い場合の失敗は仕様でありインストール不具合ではありません。
+
+`SKILL.md` のパスをコピーする代わりに[エージェントスキル](#エージェントスキルnpx-skills)を
+インストールしてください。Koma の Epoch 保護下で `jiku run`・`jiku decide`・`jiku a11y`・
+`jiku context inspect`・`jiku box classify`・`jiku memory search` を呼び出せます。

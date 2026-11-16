@@ -20,6 +20,9 @@ curl -fsSL https://cdn.komawm.org/apt/setup.sh | sudo bash && sudo apt install -
 
 # Linuxbrew
 curl -fsSLO https://cdn.komawm.org/install/jiku/jiku.rb && brew install --formula ./jiku.rb
+
+# npm / Bun（registry 作用域 `@koma-wm`，因 `komawm` 已被占用）
+bun add -g @koma-wm/jiku@development
 ```
 
 ### 从源码构建
@@ -34,6 +37,22 @@ cd jiku
 cargo +1.100.0 build --release --locked -p jikud -p jiku
 ./target/release/jikud --headless-check
 ```
+
+### 智能体 Skill（`npx skills`）
+
+仓库提供可直接安装的编码智能体 skill：
+
+```bash
+# Jiku：目标级桌面编排
+npx skills add komawm/jiku --skill jiku-desktop-orchestration -g
+
+# Koma：工作区、截图与输入原语
+npx skills add komawm/koma --skill koma-desktop -g
+```
+
+skill 采用 MIT 许可，并自带独立于 `GPL-3.0-or-later` 产品许可的 `LICENSE`，因此被复制的
+skill 仍然自包含。若已将 `@koma-wm/jiku` 作为依赖安装，`npx skills experimental_sync` 也能
+链接包内自带的 skill。
 
 ## API 密钥与环境变量
 
@@ -82,7 +101,8 @@ cargo +1.100.0 build --release --locked -p jikud -p jiku
   "mcp": {
     "koma": {
       "type": "local",
-      "command": ["koma-mcp", "--auto-mint-admin"],
+      "command": ["koma-mcp"],
+      "environment": { "KOMA_CAPABILITY_TOKEN": "koma_cap_..." },
       "enabled": true
     },
     "jiku": {
@@ -94,4 +114,10 @@ cargo +1.100.0 build --release --locked -p jikud -p jiku
 }
 ```
 
-也可以让编码智能体读取 `jiku/skills/SKILL.md`，在 Koma 的 Epoch 隔离保护下调用 `jiku run`、`jiku decide`、`jiku a11y`、`jiku context inspect`、`jiku box classify` 与 `jiku memory search`。
+用 `komactl token mint <label>` 签发令牌并注入智能体宿主。不要给由智能体控制的 MCP
+服务器传 `--auto-mint-admin`，否则智能体可以自行签发权限。`jiku status` 需要 Koma 会话在运行，
+没有会话时的失败是预期行为，不是安装问题。
+
+请安装[智能体 skill](#智能体-skillnpx-skills)，而不是复制 `SKILL.md` 路径；这样智能体才能在
+Koma 的 Epoch 隔离保护下调用 `jiku run`、`jiku decide`、`jiku a11y`、`jiku context inspect`、
+`jiku box classify` 与 `jiku memory search`。
