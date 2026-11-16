@@ -58,10 +58,10 @@ npx skills add komawm/koma --skill koma-desktop -g
 The skill is MIT licensed and carries its own `LICENSE`, independent of the
 `GPL-3.0-or-later` product license, so a copied skill stays self-contained.
 
-If you installed Jiku as a project dependency (`bun add -d @koma-wm/jiku`),
-`npx skills experimental_sync` links the skill bundled in the package instead.
-`experimental_sync` reads the project's dependencies, so a global install is not
-enough for that route.
+If the installed package was built from a tag that contains
+`skills/jiku-desktop-orchestration/`, `npx skills experimental_sync` also links that
+bundled copy from a project dependency (`bun add -d @koma-wm/jiku`). Tags that predate
+the skill catalog, including `v0.0.1`, bundle nothing, so use `npx skills add` there.
 
 ## API Keys & Environment Variables
 

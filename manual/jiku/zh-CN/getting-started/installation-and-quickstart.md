@@ -57,8 +57,9 @@ npx skills add komawm/koma --skill koma-desktop -g
 skill 采用 MIT 许可，并自带独立于 `GPL-3.0-or-later` 产品许可的 `LICENSE`，因此被复制的
 skill 仍然自包含。
 
-若把 Jiku 装为项目依赖（`bun add -d @koma-wm/jiku`），可用 `npx skills experimental_sync`
-链接包内自带的 skill。`experimental_sync` 读取的是项目依赖，因此全局安装走不了这条路径。
+若安装的包由包含 `skills/jiku-desktop-orchestration/` 的 tag 构建，`npx skills experimental_sync`
+也能为项目依赖（`bun add -d @koma-wm/jiku`）链接包内自带的 skill。早于 skill 目录的 tag
+（包括 `v0.0.1`）不含该内容，请使用 `npx skills add`。
 
 ## API 密钥与环境变量
 
