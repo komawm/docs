@@ -66,7 +66,7 @@ Semantics:
 - **Strict schema.** Unknown keys and wrong value types are rejected with the offending field path; a typo never silently becomes a default.
 - **Shared validation.** Both formats deserialize into the same `JikuConfig` and run the identical `validate()` (provider references, grid `2..=255`, live-session invariants).
 
-`jikud --migrate-config --config ~/.config/jiku/config.toml --out ~/.config/jiku/config.lua` emits a deterministic, self-contained Lua equivalent. The generator refuses to overwrite an existing file without `--force`, and fails if its output would not round-trip to the same `JikuConfig`. `jiku migrate-config` exposes the same behavior through the controller CLI.
+`jikud --migrate-config --config ~/.config/jiku/config.toml --out ~/.config/jiku/config.lua` emits a deterministic, self-contained Lua equivalent. The generator refuses to overwrite an existing file without `--force`, fails if its output would not round-trip to the same `JikuConfig`, and warns when the generated `config.lua` sits next to a `config.toml` it would shadow. `jiku migrate-config` exposes the same behavior through the controller CLI. Because the generated file is authoritative for every section it defines, remove or rename the source `config.toml` after migrating.
 
 ---
 
