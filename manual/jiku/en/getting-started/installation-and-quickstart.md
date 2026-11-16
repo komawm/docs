@@ -20,7 +20,15 @@ curl -fsSL https://cdn.komawm.org/apt/setup.sh | sudo bash && sudo apt install -
 
 # Linuxbrew
 curl -fsSLO https://cdn.komawm.org/install/jiku/jiku.rb && brew install --formula ./jiku.rb
+
+# npm / Bun (registry scope `@koma-wm`; `komawm` was already registered)
+bun add -g @koma-wm/jiku@development
 ```
+
+The npm channel is published by the `komawm/packaging` CD workflow on explicit
+dispatch, so a given version may not be on the registry yet. Until the first
+`v0.0.x` npm publication runs, use the AUR package, the distro packages, or the
+release tarballs above; a missing npm version is expected, not a broken install.
 
 ### Build from Source
 
@@ -34,6 +42,26 @@ cd jiku
 cargo +1.100.0 build --release --locked -p jikud -p jiku
 ./target/release/jikud --headless-check
 ```
+
+### Agent Skill (`npx skills`)
+
+The repository ships an installable skill for coding agents:
+
+```bash
+# Jiku: goal-level desktop orchestration
+npx skills add komawm/jiku --skill jiku-desktop-orchestration -g
+
+# Koma: compositor workspaces, capture, and input primitives
+npx skills add komawm/koma --skill koma-desktop -g
+```
+
+The skill is MIT licensed and carries its own `LICENSE`, independent of the
+`GPL-3.0-or-later` product license, so a copied skill stays self-contained.
+
+If you installed Jiku as a project dependency (`bun add -d @koma-wm/jiku`),
+`npx skills experimental_sync` links the skill bundled in the package instead.
+`experimental_sync` reads the project's dependencies, so a global install is not
+enough for that route.
 
 ## API Keys & Environment Variables
 
@@ -82,7 +110,7 @@ Both `jiku mcp` (12 orchestration tools) and `koma-mcp` (17 compositor tools) au
   "mcp": {
     "koma": {
       "type": "local",
-      "command": ["koma-mcp", "--auto-mint-admin"],
+      "command": ["koma-mcp"],
       "enabled": true
     },
     "jiku": {
@@ -94,4 +122,14 @@ Both `jiku mcp` (12 orchestration tools) and `koma-mcp` (17 compositor tools) au
 }
 ```
 
-You can also point coding agents at `jiku/skills/SKILL.md` so they invoke `jiku run`, `jiku decide`, `jiku a11y`, `jiku context inspect`, `jiku box classify`, and `jiku memory search` under Koma's Epoch-fenced IPC.
+Mint the token with `komactl token mint <label>` and export it in the shell that starts the
+agent host; `koma-mcp` reads `KOMA_CAPABILITY_TOKEN` from its environment, so the token never has
+to live in configuration. If your host does not inherit the environment, set it in that host's
+own environment block. Never pass `--auto-mint-admin` to an agent-controlled MCP server: it would
+let the agent mint its own grants.
+`jiku status` needs a running Koma session; without one it fails by design, which is not an
+installation error.
+
+Install the [agent skill](#agent-skill-npx-skills) instead of copying a `SKILL.md` path, so the agent
+invokes `jiku run`, `jiku decide`, `jiku a11y`, `jiku context inspect`, `jiku box classify`, and
+`jiku memory search` under Koma's Epoch-fenced IPC.

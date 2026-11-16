@@ -20,7 +20,15 @@ curl -fsSL https://cdn.komawm.org/apt/setup.sh | sudo bash && sudo apt install -
 
 # Linuxbrew
 curl -fsSLO https://cdn.komawm.org/install/jiku/jiku.rb && brew install --formula ./jiku.rb
+
+# npm / Bun（レジストリスコープ `@koma-wm`。`komawm` は既に登録済み）
+bun add -g @koma-wm/jiku@development
 ```
+
+npm チャネルは `komawm/packaging` の CD ワークフローを明示的にディスパッチしたときに公開されるため、
+特定バージョンがまだレジストリに存在しないことがあります。最初の `v0.0.x` npm 公開が完了するまでは、
+上記の AUR パッケージ、ディストリビューションパッケージ、またはリリース tarball を使用してください。
+npm にバージョンが無いのは想定内であり、インストール不具合ではありません。
 
 ### ソースからのビルド
 
@@ -34,6 +42,26 @@ cd jiku
 cargo +1.100.0 build --release --locked -p jikud -p jiku
 ./target/release/jikud --headless-check
 ```
+
+### エージェントスキル（`npx skills`）
+
+コーディングエージェント向けのインストール可能なスキルを同梱しています。
+
+```bash
+# Jiku: ゴール単位のデスクトップオーケストレーション
+npx skills add komawm/jiku --skill jiku-desktop-orchestration -g
+
+# Koma: ワークスペース、キャプチャ、入力プリミティブ
+npx skills add komawm/koma --skill koma-desktop -g
+```
+
+スキルは MIT ライセンスで、`GPL-3.0-or-later` の製品ライセンスとは独立した `LICENSE` を
+同梱します。コピーされたスキルが単体で完結するためです。
+
+Jiku をプロジェクト依存関係として導入した場合（`bun add -d @koma-wm/jiku`）は、
+`npx skills experimental_sync` でパッケージ同梱のスキルをリンクできます。
+`experimental_sync` はプロジェクトの依存関係を読むため、グローバルインストールでは
+この経路を使えません。
 
 ## API キーと環境変数
 
@@ -82,7 +110,7 @@ cargo +1.100.0 build --release --locked -p jikud -p jiku
   "mcp": {
     "koma": {
       "type": "local",
-      "command": ["koma-mcp", "--auto-mint-admin"],
+      "command": ["koma-mcp"],
       "enabled": true
     },
     "jiku": {
@@ -94,4 +122,13 @@ cargo +1.100.0 build --release --locked -p jikud -p jiku
 }
 ```
 
-`jiku/skills/SKILL.md` を参照させることで、Koma の Epoch 保護下で `jiku run`・`jiku decide`・`jiku a11y`・`jiku context inspect`・`jiku box classify`・`jiku memory search` を安全に呼び出せます。
+トークンは `komactl token mint <label>` で発行し、エージェントホストを起動するシェルで
+エクスポートしてください。`koma-mcp` は `KOMA_CAPABILITY_TOKEN` を環境から読むため、トークンを
+設定ファイルに書く必要はありません。環境を継承しないホストの場合は、そのホスト自身の
+environment ブロックに設定してください。エージェントが制御する MCP サーバーに
+`--auto-mint-admin` を渡してはいけません。エージェントが自身の権限を発行できてしまいます。`jiku status` は Koma セッションが動作している必要があり、
+無い場合の失敗は仕様でありインストール不具合ではありません。
+
+`SKILL.md` のパスをコピーする代わりに[エージェントスキル](#エージェントスキルnpx-skills)を
+インストールしてください。Koma の Epoch 保護下で `jiku run`・`jiku decide`・`jiku a11y`・
+`jiku context inspect`・`jiku box classify`・`jiku memory search` を呼び出せます。
