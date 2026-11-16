@@ -178,7 +178,7 @@ To inject multilingual CJK prose, code, or structured tables into editors (such 
 | **Tier 2** | **Isolated `vSeat` Clipboard Atomic Paste** | Stages the payload in the workspace's private `vSeat` clipboard (and matching `xwayland-satellite` `CLIPBOARD` selection) and synthesizes `Ctrl+V` without touching human `seat0` | WPS Office for Linux (Qt/XWayland), LibreOffice, Wine apps; natively supports **`text/html` styled blocks** and **`text/tab-separated-values` multi-cell spreadsheet pastes** | 
 | **Tier 3** | **Ephemeral XKB Keymap Remapping** | Temporarily maps unused keycodes to target Unicode keysyms (similar to [`wtype`](https://github.com/atx/wtype)), triggers key press/release, and restores the keymap | Fallback for custom-rendered inputs that neither bind `text-input-v3` nor accept clipboard paste | 
 
-## 6. Timed Macro System and Dual-Brain (`gemini-decision-1` + Local) Control Loop
+## 6. Timed Macro System and Dual-Brain (Dedicated Decision Model + Local) Control Loop
 
 ### 6.1 Native Demonstration Recording and Parameterized `Phodopus` Macros
 
@@ -188,13 +188,13 @@ For shortcut-dense workflows—such as WPS/Excel ribbon formatting and ruler dra
 
 2. **Zero-Token Replay**: Emits clean, parameterized `.lua` functions executable thousands of times inside `Phodopus` with zero LLM token overhead.
 
-### 6.2 System 1 (`gemini-decision-1`) + System 2 Dual-Brain Synergy
+### 6.2 System 1 (Dedicated Decision Model) + System 2 Dual-Brain Synergy
 
-Pairing `Koma` with [`gemini-decision-1`](https://aistudio.google.com/docs/models/gemini-decision-1) via the [`Gemini Decisions API`](https://aistudio.google.com/docs/decisions-api) (`50–100 ms` model compute, `150–250 ms` end-to-end latency, zero output tokens billed, evaluating up to `1,000` parallel questions per pass with low calibration error as detailed in the [Google DeepMind announcement](https://blog.google/innovation-and-ai/technology/developers-tools/gemini-decisions-api/)) forms a high-speed **System 1 / System 2** architecture:
+Pairing `Koma` with a dedicated decision model through a native decisions API (`50–100 ms` model compute, `150–250 ms` end-to-end latency, zero output tokens billed, evaluating up to `1,000` parallel questions per pass with low calibration error as detailed in the [Google DeepMind announcement](https://blog.google/innovation-and-ai/technology/developers-tools/gemini-decisions-api/)) forms a high-speed **System 1 / System 2** architecture:
 
 * **Discrete Action Spaces Tailored to the `255`-Choice Ceiling**:
 
-  * **Macro Skill Selection**: Up to `255` registered `Phodopus` macros for the active application are passed as a `choice` question, letting `gemini-decision-1` trigger a complete 20-step formatting or modeling combo in `150 ms` with zero output tokens.
+  * **Macro Skill Selection**: Up to `255` registered `Phodopus` macros for the active application are passed as a `choice` question, letting the decision model trigger a complete 20-step formatting or modeling combo in `150 ms` with zero output tokens.
 
   * **SoM & Two-Stage `15x15` (`225`-Cell) Grid Addressing**: When `AT-SPI2` nodes are available, `choice` picks directly among visible Set-of-Mark IDs; for raw canvas UIs (replacing brittle [`xdotool`](https://github.com/jordansissel/xdotool) pixel guessing), `koma-render` composites a two-level [`warpd`](https://github.com/rvaiya/warpd)-inspired **`15x15` (`225` <= `255`)** grid onto the offscreen snapshot, converging to `~10x6` pixel precision in two `150 ms` passes.
 
@@ -228,7 +228,7 @@ Pairing `Koma` with [`gemini-decision-1`](https://aistudio.google.com/docs/model
 
 * **Phase 2 (Locks, Kinematics & Macro Compiler)**: `WorkspaceLease + Epoch` preemption fencing, `Deck / Stash` stacks, kinematic pointer curves, isolated MIME clipboard paste, and `komactl macro record`.
 
-* **Phase 3 (Ecosystem Daemons & Dual-Brain Agents)**: `koma-mcp` stdio server, `koma-overview` hover thumbnailer and live deck, `DMA-BUF` ring-buffer recording integration, and reference `gemini-decision-1` macro/grid agent loops.
+* **Phase 3 (Ecosystem Daemons & Dual-Brain Agents)**: `koma-mcp` stdio server, `koma-overview` hover thumbnailer and live deck, `DMA-BUF` ring-buffer recording integration, and reference decision-model macro/grid agent loops.
 
 
 ---

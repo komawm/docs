@@ -25,27 +25,29 @@ image_token_estimate = 512
 keep_recent_images = 1
 a11y_max_entries_small_ctx = 28
 
-[providers.opencode_go]
-kind = "opencode_go"
-base_url = "https://opencode.ai/inference/go/openai/v1"
-api_key_env = "OPENCODE_GO_API_KEY"
+# 提供方标识、端点与模型 ID 均为占位符，请替换为你自己的绑定。
+# `api_key_env` 指定保存各提供方密钥的环境变量名。
+[providers.primary]
+kind = "openai_compatible"       # 任意 OpenAI 兼容的文本/VLM 端点
+base_url = "https://your-planner-endpoint.example/v1"
+api_key_env = "JIKU_PLANNER_API_KEY"
 thinking = false
 
-[providers.gemini]
-kind = "google_gemini"
-base_url = "https://generativelanguage.googleapis.com/v1beta"
-api_key_env = "GEMINI_API_KEY"
+[providers.decision]
+kind = "google_gemini"           # 原生判定端点驱动要求此类型
+base_url = "https://your-decision-endpoint.example/v1beta"
+api_key_env = "JIKU_DECISION_API_KEY"
 
 [roles.planner]
-provider = "opencode_go"
-model = "deepseek-v4.1-flash"
+provider = "primary"
+model = "<primary-text-model-id>"
 driver = "turn_sse"
 thinking = false
 temperature = 0.2
 
 [roles.decision_router]
-provider = "gemini"
-model = "gemini-decision-1"      # 未配置密钥时自动回退至主规划模型
+provider = "decision"
+model = "<decision-model-id>"      # 未配置密钥时自动回退至主规划模型
 driver = "decisions"
 optional = true
 fallback_to_primary_text_model = true
