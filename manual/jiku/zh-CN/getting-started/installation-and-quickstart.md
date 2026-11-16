@@ -27,6 +27,9 @@ bun add -g @koma-wm/jiku
 npm install -g @koma-wm/jiku
 ```
 
+两个 shim 都是 Node 脚本（`#!/usr/bin/env node`），因此即使用 bun 安装，`PATH` 上也必须有
+Node.js 18.17 或更高版本。该路径下 bun 只承担包管理器角色（除非显式用 `bun` 启动 shim）。
+
 registry 上已提供 glibc 版 `linux-x64` 与 `linux-arm64` 的 `v0.0.1`，`latest` 与 `development`
 都指向该版本。新版本只会在 `komawm/packaging` 的发布派发之后出现，因此查不到某个版本属于预期，
 不是安装故障。musl/Alpine、macOS 与 Windows 不受支持，launcher 会给出明确提示并拒绝运行。

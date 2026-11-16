@@ -27,6 +27,10 @@ bun add -g @koma-wm/jiku
 npm install -g @koma-wm/jiku
 ```
 
+シムは Node スクリプト（`#!/usr/bin/env node`）のため、Bun でインストールした場合でも
+Node.js 18.17 以降が `PATH` に必要です。この経路では Bun はパッケージマネージャーとしてのみ
+機能します（シムを明示的に `bun` で起動する場合を除く）。
+
 レジストリには glibc 向け `linux-x64` と `linux-arm64` の `v0.0.1` が登録されており、`latest` と
 `development` の両方がそれを指しています。新しいバージョンは `komawm/packaging` のリリース
 ディスパッチ後にのみ現れるため、未登録のバージョンはインストール不具合ではなく想定内です。

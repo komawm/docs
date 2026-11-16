@@ -27,6 +27,10 @@ bun add -g @koma-wm/jiku
 npm install -g @koma-wm/jiku
 ```
 
+Both shims are Node scripts (`#!/usr/bin/env node`), so Node.js 18.17 or newer
+must be on `PATH` even when you install with Bun. Bun is only the package manager
+on this path unless you invoke the shim with `bun` explicitly.
+
 The registry carries `v0.0.1` for `linux-x64` and `linux-arm64` on glibc, with
 `latest` and `development` both pointing at it. Newer versions appear only after a
 `komawm/packaging` release dispatch, so a version that is not on the registry yet
