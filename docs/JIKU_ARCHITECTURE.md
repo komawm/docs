@@ -2,7 +2,7 @@
 
 > **Status**: Architecture Baseline v0.3
 > **Binary & Daemon Names**: `jikud` (Background daemon), `jiku` (Detachable TUI / CLI & `jiku mcp` bridge)
-> **Configuration & State**: `~/.config/jiku/{config.toml, init.lua, skills/*.lua}` (Read-Only in sandbox), `~/.local/state/jiku/` (Read-Write), `~/JikuBox/` (Explicit file exchange dropbox)
+> **Configuration & State**: `~/.config/jiku/{config.toml | config.lua, init.lua, skills/*.lua}` (Read-Only in sandbox), `~/.local/state/jiku/` (Read-Write), `~/JikuBox/` (Explicit file exchange dropbox)
 > **Companion Compositor**: `Koma` (`komawm`) via `$XDG_RUNTIME_DIR/koma/<sig>/koma-agent.sock`
 
 ---
@@ -19,6 +19,8 @@ Following the strict Unix separation established in `docs/ARCHITECTURE.md` (and 
 ---
 
 ## 2. User Identity, Filesystem Isolation & Orthogonal Dual-Layer Sandbox
+
+Configuration and policy share one sandbox profile: `config.lua` and `init.lua` are both evaluated by the embedded Phodopus Lua 5.4 VM under an `8 MiB` `gc-arena` heap ceiling and a deterministic instruction budget, with `io`, `os`, `dofile`, and `loadfile` removed. Neither file can read the environment or the filesystem, so `api_key_env` stays a variable *name* in both `config.toml` and `config.lua`.
 
 ### 2.1 Same-UID Session Topology (Why No Separate `/home/jiku` OS User)
 

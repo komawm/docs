@@ -1,7 +1,7 @@
 # Jiku (`jiku` / `jikud`) Configuration & Bus Protocol Specification
 
 > **Document Path**: `docs/JIKU_CONFIG_SPEC.md`
-> **User Config Directory**: `~/.config/jiku/` (`config.toml`, `init.lua`, `skills/*.lua`)
+> **User Config Directory**: `~/.config/jiku/` (`config.toml` / `config.lua`, `init.lua`, `skills/*.lua`)
 > **Runtime Socket**: `$XDG_RUNTIME_DIR/jiku.sock` (`0600`, same-UID `SO_PEERCRED`)
 > **Companion Document**: `docs/JIKU_ARCHITECTURE.md`
 
@@ -11,7 +11,8 @@
 
 ```text
 ~/.config/jiku/                  # Mounted Read-Only (ro) inside jikud sandbox
-├── config.toml                  # Static infrastructure: providers, 3-driver role routing, jikubox triage, TTS, notify
+├── config.toml                  # Declarative infrastructure (TOML front end)
+├── config.lua                   # Optional sandboxed Lua front end, merged over config.toml
 ├── init.lua                     # Phodopus policy hooks (memory shaping, notification rules, TTS triggers)
 └── skills/                      # Human-approved deterministic GUI macros (*.lua)
     ├── libreoffice_export.lua
@@ -29,7 +30,47 @@
 
 ---
 
-## 2. `config.toml` Schema Reference
+## 1.1 Configuration Front Ends (`config.toml` / `config.lua`)
+
+The same typed configuration is accepted as TOML or as a sandboxed Lua document. The format is selected by file extension.
+
+| Invocation | Loaded documents |
+| :--- | :--- |
+| `--config <PATH>` / `$JIKU_CONFIG` | exactly that file (`.toml` or `.lua`) |
+| default search, both files present | `~/.config/jiku/config.toml`, then `~/.config/jiku/config.lua` merged over it |
+| default search, one file present | that file only |
+| none present | built-in validated defaults |
+
+`config.lua` calls `jiku.config{...}` one or more times; the argument mirrors the TOML table names (`daemon`, `koma`, `providers`, `roles`, `decision_router`, `live_session`, `jikubox`, `memory`, `notify`, `tts`, `avatar`, `context`):
+
+```lua
+jiku.config{
+    daemon = { locale = "en-US" },
+    providers = {
+        primary = {
+            kind = "openai_compatible",
+            base_url = "https://your-planner-endpoint.example/v1",
+            api_key_env = "JIKU_PLANNER_API_KEY",
+        },
+    },
+    roles = {
+        planner = { provider = "primary", model = "<primary-text-model-id>", driver = "turn_sse" },
+    },
+}
+```
+
+Semantics:
+
+- **Field-level merge.** Lua objects merge key by key over the baseline; arrays and scalars replace the previous value. Repeated `jiku.config{...}` calls merge in order.
+- **Sandbox parity.** The configuration VM uses the same Phodopus profile as `init.lua`: an `8 MiB` `gc-arena` heap ceiling, a deterministic instruction budget, and no `io`, `os`, `dofile`, or `loadfile`. It cannot read the environment, so `api_key_env` always stays a variable *name* and raw secrets never enter the configuration file or the Lua heap.
+- **Strict schema.** Unknown keys and wrong value types are rejected with the offending field path; a typo never silently becomes a default.
+- **Shared validation.** Both formats deserialize into the same `JikuConfig` and run the identical `validate()` (provider references, grid `2..=255`, live-session invariants).
+
+`jikud --migrate-config --config ~/.config/jiku/config.toml --out ~/.config/jiku/config.lua` emits a deterministic, self-contained Lua equivalent. The generator refuses to overwrite an existing file without `--force`, and fails if its output would not round-trip to the same `JikuConfig`. `jiku migrate-config` exposes the same behavior through the controller CLI.
+
+---
+
+## 2. Configuration Schema Reference (`config.toml` / `config.lua`)
 
 ### 2.1 `[daemon]` & `[koma]` Connection
 
