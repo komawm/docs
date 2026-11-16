@@ -312,7 +312,7 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
 ```
 
-* **Overlay Modes**: `"none"`, `"som"` (draws numbered bounding boxes from `AT-SPI2` / semantic hints), or `"grid_225"` (draws a `15x15` [`warpd`](https://github.com/rvaiya/warpd)-style labeled grid tailored to the `255`-option `choice` ceiling of [`gemini-decision-1`](https://aistudio.google.com/docs/models/gemini-decision-1) on the [`Gemini Decisions API`](https://aistudio.google.com/docs/decisions-api)).
+* **Overlay Modes**: `"none"`, `"som"` (draws numbered bounding boxes from `AT-SPI2` / semantic hints), or `"grid_225"` (draws a `15x15` [`warpd`](https://github.com/rvaiya/warpd)-style labeled grid tailored to the `255`-option `choice` ceiling of native decisions-API `choice` models).
 
 * **`capture.export_dmabuf`**: Exports multi-planar `DMA-BUF` FDs, DRM `fourcc`, `modifier`, `stride`, and `offset` metadata via `SCM_RIGHTS` (aligned with [`ext-image-capture-source-v1`](https://wayland.app/protocols/ext-image-capture-source-v1) and [`ext-image-copy-capture-v1`](https://wayland.app/protocols/ext-image-copy-capture-v1)) for zero-CPU-copy ring recorders like [`wl-screenrec`](https://github.com/rosalyntg/wl-screenrec) or local GPU tensor import.
 

@@ -2,7 +2,7 @@
 
 > **Status**: Architecture Baseline v0.3
 > **Binary & Daemon Names**: `jikud` (Background daemon), `jiku` (Detachable TUI / CLI & `jiku mcp` bridge)
-> **Configuration & State**: `~/.config/jiku/{config.toml, init.lua, skills/*.lua}` (Read-Only in sandbox), `~/.local/state/jiku/` (Read-Write), `~/JikuBox/` (Explicit file exchange dropbox)
+> **Configuration & State**: `~/.config/jiku/{config.toml, config.lua, init.lua, skills/*.lua}` (Read-Only in sandbox; `config.lua` is merged over `config.toml` when both exist), `~/.local/state/jiku/` (Read-Write), `~/JikuBox/` (Explicit file exchange dropbox)
 > **Companion Compositor**: `Koma` (`komawm`) via `$XDG_RUNTIME_DIR/koma/<sig>/koma-agent.sock`
 
 ---
@@ -19,6 +19,8 @@ Following the strict Unix separation established in `docs/ARCHITECTURE.md` (and 
 ---
 
 ## 2. User Identity, Filesystem Isolation & Orthogonal Dual-Layer Sandbox
+
+Configuration and policy share one sandbox profile: `config.lua` and `init.lua` are both evaluated by the embedded Phodopus Lua 5.4 VM under an `8 MiB` `gc-arena` heap ceiling and a deterministic instruction budget, with `io`, `os`, `dofile`, and `loadfile` removed. Neither file can read the environment or the filesystem, so `api_key_env` stays a variable *name* in both `config.toml` and `config.lua`.
 
 ### 2.1 Same-UID Session Topology (Why No Separate `/home/jiku` OS User)
 
@@ -121,7 +123,7 @@ The **Primary Text/Multimodal Model** (`[roles.planner]` backed by `TurnModelDri
 Rather than forcing every desktop interaction through a single endpoint when optional accelerators are present, `jikud` partitions inference across **three specialized model drivers** matched to the latency, output cardinality, and duplex requirements of each workload:
 
 1. **`TurnModelDriver` (Foundational Primary Text/VLM Driver)**: Autoregressive turn-based HTTP/2 SSE driver (`reqwest`) powering `[roles.planner]` for open-ended planning, free-form text input, Lua skill synthesis, and automatic **`EmulatedStructuredTextModel`** fallback when no dedicated decision model is configured.
-2. **`DecisionsDriver` / `DecisionBackend` (Optional Zero-Decode Acceleration + Zero-Error Emulated Fallback)**: Evaluates closed-set probability distributions (`noul`, `choice`, `score`) via **`DecisionExecutionMode::NativeDecisionsApi`** when a dedicated Decision Model (`gemini-decision-1` via Google AI Studio `POST /v1beta/decisions`, authenticated via `GEMINI_API_KEY`) is configured, or automatically falls back to **`DecisionExecutionMode::EmulatedStructuredTextModel`** on the primary text/VLM model without ever erroring out.
+2. **`DecisionsDriver` / `DecisionBackend` (Optional Zero-Decode Acceleration + Zero-Error Emulated Fallback)**: Evaluates closed-set probability distributions (`noul`, `choice`, `score`) via **`DecisionExecutionMode::NativeDecisionsApi`** when a dedicated Decision Model (reached through Google AI Studio `POST /v1beta/decisions`, authenticated with the provider key named by `api_key_env`) is configured, or automatically falls back to **`DecisionExecutionMode::EmulatedStructuredTextModel`** on the primary text/VLM model without ever erroring out.
 3. **`LiveSessionDriver` (Optional Progressive Module, Disabled by Default)**: Stateful full-duplex WebSocket driver (`tokio-tungstenite` / `BidiGenerateContent`) for real-time voice, vision, and low-latency action multiplexing (`jiku live`), enabled only when explicitly opted in via `config.toml`.
 
 ```
@@ -134,7 +136,7 @@ Rather than forcing every desktop interaction through a single endpoint when opt
              (<250 ms Prefill)  v              v     + 16kHz PCM | Non-Blocking Actions
       +----------------------------+    +----------------------------------+
       |      DecisionsDriver       |    |        LiveSessionDriver         |
-      |     gemini-decision-1      |    |   Stateful Full-Duplex WebSocket |
+      |   native decision model    |    |   Stateful Full-Duplex WebSocket |
       |   POST /v1beta/decisions   |    |  (Uplink / Downlink / ActBridge) |
       +----------------------------+    +----------------------------------+
            |                  |
@@ -154,7 +156,7 @@ Rather than forcing every desktop interaction through a single endpoint when opt
 `DecisionBackend` provides a unified closed-set decision engine supporting two execution modes (`DecisionExecutionMode`):
 
 1. **`DecisionExecutionMode::NativeDecisionsApi` (Optional Dedicated Decision Model Acceleration)**:
-   When a dedicated Decision Model (`gemini-decision-1` via Google AI Studio's `POST https://generativelanguage.googleapis.com/v1beta/decisions`, authenticated with `GEMINI_API_KEY`) is configured, `Jiku` uses **`NativeDecisionsApi`** (`0` output tokens, single prefill pass) for closed-set tasks where decision models excel:
+   When a dedicated Decision Model (reached through Google AI Studio's `POST https://generativelanguage.googleapis.com/v1beta/decisions`, authenticated with the provider key named by `api_key_env`) is configured, `Jiku` uses **`NativeDecisionsApi`** (`0` output tokens, single prefill pass) for closed-set tasks where decision models excel:
    * GUI `grid_225` targeting and sub-grid centroid interpolation (`interpolate_grid_225_centroid`),
    * `DecisionCompiler` multi-step shortcut sequences (`TimeSlotMacro`, `BernoulliExpectedStep`, `ThresholdProbe`),
    * 15-rule parallel visual safety gates (`q_safety_gate`),
@@ -167,7 +169,7 @@ Rather than forcing every desktop interaction through a single endpoint when opt
 
 #### Zero-Decode Single-Prefill Mechanism & Wire JSON Contract (`NativeDecisionsApi`)
 
-Unlike standard generative LLMs that decode output tokens autoregressively one token at a time, `gemini-decision-1` performs **Single-Prefill Zero-Decode Evaluation**:
+Unlike standard generative LLMs that decode output tokens autoregressively one token at a time, a dedicated decision model performs **Single-Prefill Zero-Decode Evaluation**:
 
 * **`0` Output Tokens Generated**: The model runs a single forward prefill pass over one shared multimodal context (text + inline image/audio/PDF/video bytes) and evaluates **`1..=1000` parallel structured questions** simultaneously in the same request, billing `0` output tokens (`usage.total_output_tokens == 0`).
 * **Three Native Question Primitives**:
@@ -180,7 +182,7 @@ Unlike standard generative LLMs that decode output tokens autoregressively one t
 
 ```json
 {
-  "model": "gemini-decision-1",
+  "model": "<decision-model-id>",
   "input": [
     {
       "type": "image",
@@ -264,7 +266,7 @@ Unlike standard generative LLMs that decode output tokens autoregressively one t
 
 #### Sub-Grid Probability-Weighted Centroid Interpolation (`interpolate_grid_225_centroid`)
 
-When a wide UI control (such as an `"Export"` button) straddles the boundary between adjacent `grid_225` (`15x15`) cells, `gemini-decision-1` naturally splits its softmax probability mass across those neighboring cells (for example, `L13` with $p = 0.54$ and horizontally adjacent `M13` with $p = 0.41$). Although neither single cell exceeds the `0.85` fast-path threshold in isolation, their combined local mass is $0.54 + 0.41 = 0.95 \ge 0.85$.
+When a wide UI control (such as an `"Export"` button) straddles the boundary between adjacent `grid_225` (`15x15`) cells, a dedicated decision model naturally splits its softmax probability mass across those neighboring cells (for example, `L13` with $p = 0.54$ and horizontally adjacent `M13` with $p = 0.41$). Although neither single cell exceeds the `0.85` fast-path threshold in isolation, their combined local mass is $0.54 + 0.41 = 0.95 \ge 0.85$.
 
 Instead of discarding split-cell hits or snapping coarsely to `L13`'s center, `jikud` runs **`interpolate_grid_225_centroid`**:
 1. Collects the top cell $c_0$ and any 8-connected neighboring `grid_225` cells $\mathcal{N}(c_0)$ whose individual probability $p_c \ge 0.05$.
@@ -315,7 +317,7 @@ To compile multi-step keyboard and GUI micro-transactions inside a **single `POS
 
 #### Closed-Set Decision (`DecisionsDriver`) vs. Open-Ended Generative (`TurnModelDriver`) Boundary
 
-| Dimension | `DecisionsDriver` (`gemini-decision-1`) | `TurnModelDriver` (`reqwest` + HTTP/2 SSE) |
+| Dimension | `DecisionsDriver` (native decision model) | `TurnModelDriver` (`reqwest` + HTTP/2 SSE) |
 | :--- | :--- | :--- |
 | **Inference Mechanism** | Single-prefill zero-decode pass (`0` output tokens generated). | Autoregressive token-by-token decoding streamed over HTTP/2 SSE. |
 | **Output Space** | Closed-set calibrated probability distributions: `noul` (`Yes/No`), `choice` (`2..=255` options), `score` (`2..=255` levels). | Open-ended text generation, multi-step reasoning plans, free-form keyboard strings, and Lua macro code. |
@@ -327,8 +329,8 @@ To compile multi-step keyboard and GUI micro-transactions inside a **single `POS
 
 1. **Mandatory `"NONE_OR_OTHER"` / `"not_visible"` Fallback + Paired `Yes/No` (`q_in_scope`) Gate**:
    Because every `Choice` question softmax-normalizes its option probabilities to sum to **`1.0`**, omitting a fallback option forces out-of-distribution inputs into high-confidence false positives. Every `Choice` question in `jikud` **must** include an explicit `"NONE_OR_OTHER"` or `"not_visible"` option and be gated by a paired binary `Yes/No` (`noul`) question (`q_in_scope`).
-2. **Literal Model ID `"gemini-decision-1"` & Request-Level Question Batching**:
-   Callers must pass the exact literal string `"gemini-decision-1"` (no `-latest` alias exists). The `/v1beta/decisions` endpoint supports neither Context Caching nor the asynchronous Batch API; instead, `jikud` amortizes input token cost by packing up to **`1,000` questions** into a single request's `questions` map over the shared multimodal payload.
+2. **Literal Native Decision Model ID & Request-Level Question Batching**:
+   Callers must pass the provider's exact native decision model identifier (versioned aliases such as `-latest` are rejected). The `/v1beta/decisions` endpoint supports neither Context Caching nor the asynchronous Batch API; instead, `jikud` amortizes input token cost by packing up to **`1,000` questions** into a single request's `questions` map over the shared multimodal payload.
 3. **Decompose Coarse `Score` Rubrics into `5..=10` Binary `Yes/No` (`noul`) Checklists**:
    Whenever a grading or safety rubric can be expressed as verifiable criteria, `jikud` decomposes coarse `Score` questions into **`5..=10` orthogonal binary `Yes/No` (`noul`) checklist questions** and computes the weighted score in Rust/Lua, yielding substantially tighter calibration and per-criterion auditability in `audit.jsonl`.
 4. **Media Transport Constraints & AI Studio Free vs. Paid Tier Privacy Boundary**:
@@ -345,7 +347,7 @@ When a task requires open-ended generation—or when `DecisionsDriver` routes a 
   1. **Multi-Step `planner` & Error Recovery**: Decomposes complex cross-application goals, inspects L1 `app_id` quirks and `DecisionsDriver`-reranked L2 FTS5 episodes, and recovers from unexpected UI modal states.
   2. **Open-Ended Text Entry (`Zero-IME` `type_text`)**: Generates arbitrary natural-language replies, search queries, file names, and form payloads injected directly via `Koma`'s `zwp_text_input_v3` / `VirtualSeat` pipeline.
   3. **Candidate `staged_skills/*.lua` Synthesis**: Synthesizes parameterized `Phodopus` Lua macros from verified multi-step trajectories, strips unsafe tokens, and writes them to `~/.local/state/jiku/staged_skills/` for human `jiku skills approve` promotion.
-* **Heterogeneous Provider Support**: Connects to **OpenCode Go** (`kind = "opencode_go"`, `https://opencode.ai/inference/go/openai/v1/chat/completions`, sending a deterministic `x-opencode-session` UUIDv4 header and defaulting to `deepseek-v4.1-flash` with `"thinking": {"type": "disabled"}`), **Google AI Studio**, **Vertex AI** (via Application Default Credentials / ADC), **Anthropic** (`Messages` API with prefix prompt caching), and **OpenAI-compatible** endpoints (`OpenAI`, `DeepSeek`, `OpenRouter`, `vLLM`, `llama.cpp`, `Ollama`), mapping heterogeneous visual grounding outputs (`0..1000` bounding boxes, normalized points, or `9-anchor` window offsets) through a unified **`ActionNormalizer`**.
+* **Heterogeneous Provider Support**: Connects to **OpenAI-compatible gateways** (`kind = "openai_compatible"` or `"opencode_go"`, optional `"thinking": {"type": "disabled"}` toggle, deterministic session UUID headers, and the model ID you configure), **Google AI Studio**, **Vertex AI** (via Application Default Credentials / ADC), **Anthropic** (`Messages` API with prefix prompt caching), and **OpenAI-compatible** self-hosted endpoints (`vLLM`, `llama.cpp`, `Ollama`), mapping heterogeneous visual grounding outputs (`0..1000` bounding boxes, normalized points, or `9-anchor` window offsets) through a unified **`ActionNormalizer`**.
 
 ---
 

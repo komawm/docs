@@ -26,7 +26,7 @@ Every Lua evaluation inside `koma-lua` runs under deterministic `gc-arena` memor
 | ----- | ----- | ----- | ----- | ----- | ----- | 
 | **1. Config Load / Reload** | Startup or `komactl reload` | Declarative registration (`koma.monitor`, `koma.workspace`, `koma.input`, `koma.appearance`, `koma.bind`, `koma.rule.*`, `koma.macro.define`, `koma.on`) | `200,000` instructions | `4 MiB` | Forbidden (pure synchronous table build) | 
 | **2. In-Frame Layout Hook** | Window map, unmap, or resize transaction | Pure geometry callbacks (`koma.layout.register`) | `50,000` instructions | `2 MiB` | Forbidden (must finish within single frame) | 
-| **3. Async Action / Macro** | Keybind callback, IPC `lua.exec_tx`, or [`gemini-decision-1`](https://aistudio.google.com/docs/models/gemini-decision-1) choice dispatch | `MacroContext` (`ctx:*` input, text injection, sleep, damage-settle sync, window queries) | `100,000` per resume slice | `4 MiB` per coroutine | Allowed (`SleepTimer`, `WaitDamageSettle`, `PointerTrajectory`) | 
+| **3. Async Action / Macro** | Keybind callback, IPC `lua.exec_tx`, or native decisions-API `choice` dispatch | `MacroContext` (`ctx:*` input, text injection, sleep, damage-settle sync, window queries) | `100,000` per resume slice | `4 MiB` per coroutine | Allowed (`SleepTimer`, `WaitDamageSettle`, `PointerTrajectory`) | 
 
 ### 1.2 Indexing, Filesystem Jail & Live Reload Safety
 
@@ -478,7 +478,7 @@ koma.rule.layer({
 
 ## 5. Timed Macro & Coroutine Automation API (`koma.macro`)
 
-`koma.macro` turns shortcut-rich desktop applications—spreadsheets (WPS/Excel/Calc), word processors, 3D/animation suites (Blender), DAWs, and keyboard-driven games—into zero-token, sub-millisecond reusable skills callable by human hotkeys, `komactl`, `koma-mcp`, or [`gemini-decision-1`](https://aistudio.google.com/docs/models/gemini-decision-1) `choice` policies on the [`Gemini Decisions API`](https://aistudio.google.com/docs/decisions-api).
+`koma.macro` turns shortcut-rich desktop applications—spreadsheets (WPS/Excel/Calc), word processors, 3D/animation suites (Blender), DAWs, and keyboard-driven games—into zero-token, sub-millisecond reusable skills callable by human hotkeys, `komactl`, `koma-mcp`, or native decisions-API `choice` policies.
 
 ### 5.1 9-Anchor Window-Relative Coordinate Geometry (`AnchorPoint`)
 
@@ -488,7 +488,7 @@ Hardcoded screen coordinates break whenever a window resizes or moves. Every poi
 
 2. **Normalized Proportional Point**: `{ u = 0.5, v = 0.25 }` (`0.0..1.0` across window width and height).
 
-3. **225-Cell Decision Grid Label**: `{ grid_225 = "G8" }` (maps directly to the `15x15` [`warpd`](https://github.com/rvaiya/warpd)-style overlay grid used by `gemini-decision-1`).
+3. **225-Cell Decision Grid Label**: `{ grid_225 = "G8" }` (maps directly to the `15x15` [`warpd`](https://github.com/rvaiya/warpd)-style overlay grid used by decision-model `choice` policies).
 
 ### 5.2 `MacroContext` (`ctx`) Coroutine Primitives
 
@@ -551,7 +551,7 @@ koma.macro.define({
 
 ### 5.3 Defining Parameterized Macros (`koma.macro.define`)
 
-Declaring a `params` schema allows `koma-mcp` to automatically expose the macro as a typed MCP tool and allows `gemini-decision-1` to invoke pre-validated macro banks without generating raw coordinates or burning LLM output tokens:
+Declaring a `params` schema allows `koma-mcp` to automatically expose the macro as a typed MCP tool and allows a decision model to invoke pre-validated macro banks without generating raw coordinates or burning LLM output tokens:
 
 ```
 -- Example 1: Zero-Token WPS / Excel Table Ingestion & Ribbon Formatting Macro

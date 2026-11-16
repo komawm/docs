@@ -1,7 +1,7 @@
 # Jiku (`jiku` / `jikud`) Configuration & Bus Protocol Specification
 
 > **Document Path**: `docs/JIKU_CONFIG_SPEC.md`
-> **User Config Directory**: `~/.config/jiku/` (`config.toml`, `init.lua`, `skills/*.lua`)
+> **User Config Directory**: `~/.config/jiku/` (`config.toml` / `config.lua`, `init.lua`, `skills/*.lua`)
 > **Runtime Socket**: `$XDG_RUNTIME_DIR/jiku.sock` (`0600`, same-UID `SO_PEERCRED`)
 > **Companion Document**: `docs/JIKU_ARCHITECTURE.md`
 
@@ -11,7 +11,8 @@
 
 ```text
 ~/.config/jiku/                  # Mounted Read-Only (ro) inside jikud sandbox
-├── config.toml                  # Static infrastructure: providers, 3-driver role routing, jikubox triage, TTS, notify
+├── config.toml                  # Declarative infrastructure (TOML front end)
+├── config.lua                   # Optional sandboxed Lua front end, merged over config.toml
 ├── init.lua                     # Phodopus policy hooks (memory shaping, notification rules, TTS triggers)
 └── skills/                      # Human-approved deterministic GUI macros (*.lua)
     ├── libreoffice_export.lua
@@ -29,7 +30,47 @@
 
 ---
 
-## 2. `config.toml` Schema Reference
+## 1.1 Configuration Front Ends (`config.toml` / `config.lua`)
+
+The same typed configuration is accepted as TOML or as a sandboxed Lua document. The format is selected by file extension.
+
+| Invocation | Loaded documents |
+| :--- | :--- |
+| `--config <PATH>` / `$JIKU_CONFIG` | exactly that file (`.toml` or `.lua`) |
+| default search, both files present | `~/.config/jiku/config.toml`, then `~/.config/jiku/config.lua` merged over it |
+| default search, one file present | that file only |
+| none present | built-in validated defaults |
+
+`config.lua` calls `jiku.config{...}` one or more times; the argument mirrors the TOML table names (`daemon`, `koma`, `providers`, `roles`, `decision_router`, `live_session`, `jikubox`, `memory`, `notify`, `tts`, `avatar`, `context`):
+
+```lua
+jiku.config{
+    daemon = { locale = "en-US" },
+    providers = {
+        primary = {
+            kind = "openai_compatible",
+            base_url = "https://your-planner-endpoint.example/v1",
+            api_key_env = "JIKU_PLANNER_API_KEY",
+        },
+    },
+    roles = {
+        planner = { provider = "primary", model = "<primary-text-model-id>", driver = "turn_sse" },
+    },
+}
+```
+
+Semantics:
+
+- **Field-level merge.** Lua objects merge key by key over the baseline; arrays and scalars replace the previous value. Repeated `jiku.config{...}` calls merge in order.
+- **Sandbox parity.** The configuration VM uses the same Phodopus profile as `init.lua`: an `8 MiB` `gc-arena` heap ceiling, a deterministic instruction budget, and no `io`, `os`, `dofile`, or `loadfile`. It cannot read the environment, so credentials must be referenced by `api_key_env` name rather than inlined; keep secrets out of the configuration file and the Lua heap.
+- **Strict schema.** Unknown keys and wrong value types are rejected with the offending field path; a typo never silently becomes a default.
+- **Shared validation.** Both formats deserialize into the same `JikuConfig` and run the identical `validate()` (provider references, grid `2..=255`, live-session invariants).
+
+`jikud --migrate-config --config ~/.config/jiku/config.toml --out ~/.config/jiku/config.lua` emits a deterministic, self-contained Lua equivalent. The generator refuses to overwrite an existing file without `--force`, and fails if its output would not round-trip to the same `JikuConfig`. `jiku migrate-config` exposes the same behavior through the controller CLI.
+
+---
+
+## 2. Configuration Schema Reference (`config.toml` / `config.lua`)
 
 ### 2.1 `[daemon]` & `[koma]` Connection
 
@@ -47,7 +88,7 @@
 `Jiku` works out-of-the-box both as a **standalone customizable desktop agent** (configured with any cloud or local LLM provider in `config.toml`) and as a **sub-agent / tool bridge** invoked by external AI coding agents (**`Claude Code`**, **`Codex`**, **`GitHub Copilot`**, **`Cursor`**, **`OpenCode`**) via **MCP (`jiku mcp`)** or **CLI + `SKILL.md` (`jiku run ...`, `komactl`)**.
 
 Supported provider `kind` templates across `jikud`'s architecture:
-* `"google_gemini"` — Google AI Studio (`GEMINI_API_KEY`) and Vertex AI ADC supporting `DecisionsDriver` (`POST /v1beta/decisions` with literal model ID `"gemini-decision-1"`), `TurnModelDriver` (`reqwest` HTTP/2 SSE + Gemini Computer Use `0..1000` coordinates), and optional `LiveSessionDriver` (`BidiGenerateContent` stateful full-duplex WebSocket).
+* `"google_gemini"` — Google AI Studio (key read from the variable named by `api_key_env`) and Vertex AI ADC supporting `DecisionsDriver` (`POST /v1beta/decisions` with the provider's native decision model ID), `TurnModelDriver` (`reqwest` HTTP/2 SSE + Gemini Computer Use `0..1000` coordinates), and optional `LiveSessionDriver` (`BidiGenerateContent` stateful full-duplex WebSocket).
 * `"openai_compatible"` — Covers `TurnModelDriver` (`/v1/chat/completions` across OpenAI GPT, DeepSeek, OpenRouter, and self-hosted local models via `vLLM`, `llama.cpp`, and `Ollama`), automatic `EmulatedStructuredTextModel` decision fallback via JSON Schema `response_format`, and optional `LiveSessionDriver` (OpenAI Realtime API, Qwen-Omni Realtime, and local WebRTC/WebSocket speech-to-speech endpoints).
 * `"anthropic"` — Native Anthropic `Messages` API (`TurnModelDriver` HTTP/2 SSE for Claude models) with prefix prompt caching, Computer Use coordinate normalization, and `EmulatedStructuredTextModel` decision fallback.
 
@@ -62,14 +103,14 @@ Role assignments under `[roles]`:
 Configures `DecisionBackend` for closed-set evaluation (System-1 GUI `grid_225` targeting, `DecisionCompiler` shortcut sequences, 15-rule visual safety gating, `~/JikuBox/` multimodal tagging/grading, Live2D 255-cue selection, and L2 FTS5 trajectory reranking).
 
 `DecisionBackend` automatically selects its **`DecisionExecutionMode`** based on the configured model and **never errors out** if a dedicated decision model is absent:
-1. **`DecisionExecutionMode::NativeDecisionsApi`**: Selected when `model = "gemini-decision-1"` (`POST /v1beta/decisions` via `GEMINI_API_KEY`). Executes in a single prefill pass with **`0` output tokens** for closed-set tasks where decision models excel.
+1. **`DecisionExecutionMode::NativeDecisionsApi`**: Selected when `model` names the provider's native decision model (`POST /v1beta/decisions` authenticated with the provider key named by `api_key_env`). Executes in a single prefill pass with **`0` output tokens** for closed-set tasks where decision models excel.
 2. **`DecisionExecutionMode::EmulatedStructuredTextModel` (Zero-Error Automatic Fallback)**: Selected automatically when **no** dedicated Decision Model is configured (or when the user assigns a general text/VLM model to `[roles.decision_router]`). `Jiku` invokes **`synthesize_emulated_decision_prompt`** + strict JSON Schema constraints (`response_format`) on the primary text/VLM model (`[roles.planner]` or the configured general model) to output the exact same `{"answers": { ... }}` structure (`noul`, `choice`, and `score` probabilities and confidence). Downstream `DecisionCompiler` logic (`TimeSlotMacro`, `BernoulliExpectedStep`, `ThresholdProbe`) and `interpolate_grid_225_centroid` run **unchanged** across both modes.
 
 | Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `provider` | `string` | `"google_ai_studio"` | Provider reference (if omitted or set to a general text/VLM provider, automatically runs `EmulatedStructuredTextModel` on `[roles.planner]`). |
-| `model` | `string` | `"gemini-decision-1"` | Literal `"gemini-decision-1"` enables `NativeDecisionsApi` (`0` output tokens); any general text/VLM model (or omitting `[roles.decision_router]`) automatically selects `EmulatedStructuredTextModel` without error. |
-| `execution_mode` | `string` | `"auto"` | `"auto"` (`NativeDecisionsApi` when `model == "gemini-decision-1"`, otherwise `EmulatedStructuredTextModel`), `"native_decisions_api"`, or `"emulated_structured_text_model"`. |
+| `model` | `string` | unset (emulated) | The provider's native decision model ID enables `NativeDecisionsApi` (`0` output tokens); any general text/VLM model (or omitting `[roles.decision_router]`) automatically selects `EmulatedStructuredTextModel` without error. |
+| `execution_mode` | `string` | `"auto"` | `"auto"` (`NativeDecisionsApi` when `model` names the native decision model, otherwise `EmulatedStructuredTextModel`), `"native_decisions_api"`, or `"emulated_structured_text_model"`. |
 | `confidence_threshold` | `float` | `0.85` | Minimum probability required on `q_in_scope` and top action/target to dispatch directly to `Koma`; `< 0.85` escalates to `fallback_role`. |
 | `fallback_role` | `string` | `"planner"` | Primary `TurnModelDriver` role (`[roles.planner]`) used for System-2 escalation (`< 0.85`) and automatic `EmulatedStructuredTextModel` fallback. |
 | `max_questions_per_request` | `integer` | `1000` | Maximum parallel structured questions (`1..=1000`) packed into a single evaluation pass. |
@@ -102,7 +143,7 @@ Configures `jiku live` real-time voice, vision, and `Epoch`-fenced non-blocking 
 | `enabled` | `bool` | `false` | Explicitly enables the optional `LiveSessionDriver` module for `jiku live` (disabled by default). |
 | `provider` | `string` | `"google_ai_studio"` | Provider backing the stateful full-duplex WebSocket session when enabled. |
 | `protocol` | `string` | `"gemini_bidi"` | Wire protocol: `"gemini_bidi"` (`BidiGenerateContent`), `"openai_realtime"`, `"qwen_omni_realtime"`, or `"local_ws"`. |
-| `model` | `string` | `"gemini-2.5-flash-live"` | Multimodal live session model identifier. |
+| `model` | `string` | provider-specific | Multimodal live session model identifier. |
 | `audio_in_sample_rate_hz` | `integer` | `16000` | Configurable PipeWire uplink microphone capture rate (`8000..=48000` Hz, default `16000` Hz, `16-bit mono PCM`, `20–100 ms` chunks). |
 | `audio_out_sample_rate_hz` | `integer` | `24000` | Configurable PipeWire downlink playback rate (`8000..=48000` Hz, default `24000` Hz PCM) with real-time RMS/frequency lip-sync extraction. |
 | `max_screen_fps` | `integer` | `2` | Configurable maximum `memfd` screen frame uplink rate (`1..=60` FPS, default `2` FPS) when `window.damage_settled` reports changes. |
@@ -115,7 +156,7 @@ Configures `jiku live` real-time voice, vision, and `Epoch`-fenced non-blocking 
 
 ### 2.5 `[jikubox.triage]` (Multimodal Batch Classification & Screening via `DecisionBackend`)
 
-Configures `jiku box classify` batch evaluation over `~/JikuBox/` using `DecisionBackend` (`NativeDecisionsApi` when `gemini-decision-1` is configured, or automatic `EmulatedStructuredTextModel` fallback on `[roles.planner]`):
+Configures `jiku box classify` batch evaluation over `~/JikuBox/` using `DecisionBackend` (`NativeDecisionsApi` when a native decision model is configured, or automatic `EmulatedStructuredTextModel` fallback on `[roles.planner]`):
 
 | Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
@@ -139,16 +180,16 @@ Configures `jiku box classify` batch evaluation over `~/JikuBox/` using `Decisio
 # 1. Foundational Primary Text/Multimodal Model (Required — OpenAI, Anthropic, Gemini, OpenRouter, or local vLLM/llama.cpp/Ollama)
 [roles.planner]
 provider = "openai_or_local"
-model = "gpt-5.4" # or "claude-sonnet-4-6", "gemini-2.5-pro", "qwen3-vl-32b-instruct"
+model = "<primary-text-model-id>" # any text/VLM model exposed by your provider
 
 # 2. Optional Decision Model Acceleration (DecisionBackend)
-# - If model = "gemini-decision-1", runs DecisionExecutionMode::NativeDecisionsApi (0 output tokens, single prefill).
+# - If model names the provider's native decision model, runs DecisionExecutionMode::NativeDecisionsApi (0 output tokens, single prefill).
 # - If omitted or set to a general text/VLM model, Jiku NEVER errors out: it automatically falls back to
 #   DecisionExecutionMode::EmulatedStructuredTextModel via synthesize_emulated_decision_prompt + JSON Schema response_format
 #   returning the identical {"answers": { ... }} structure so DecisionCompiler runs unchanged.
 [roles.decision_router]
 provider = "google_ai_studio"
-model = "gemini-decision-1"
+model = "<decision-model-id>"
 execution_mode = "auto"
 confidence_threshold = 0.85
 fallback_role = "planner"
@@ -188,7 +229,7 @@ speaker_id = 3
 enabled = false
 provider = "google_ai_studio"
 protocol = "gemini_bidi"
-model = "gemini-2.5-flash-live"
+model = "<live-model-id>"
 audio_in_sample_rate_hz = 16000
 audio_out_sample_rate_hz = 24000
 max_screen_fps = 2
@@ -228,7 +269,7 @@ jiku bench run --offline
 jiku avatar serve --bind 127.0.0.1:4190
 
 # Run batch classification, tagging & rubric screening on ~/JikuBox/
-# (Uses NativeDecisionsApi 0-output-token pass when gemini-decision-1 is configured, or EmulatedStructuredTextModel fallback)
+# (Uses NativeDecisionsApi 0-output-token pass when a native decision model is configured, or EmulatedStructuredTextModel fallback)
 jiku box classify ~/JikuBox/inbox --rubric ~/.config/jiku/triage_rubric.toml --out ~/JikuBox/triaged/report.json
 
 # Start or attach to an optional Stateful Full-Duplex WebSocket companion session (requires [roles.live_companion] enabled = true)
