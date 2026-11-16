@@ -7,7 +7,7 @@
 
 ## 安装 `jikud` 与 `jiku`
 
-可通过 [komawm/packaging](https://github.com/komawm/packaging) 安装预构建软件包（签名 APT `jiku` 包、AUR `jiku-bin`、Linuxbrew `jiku.rb` 或 `.deb`/`.rpm`/`.apk` 包），从 [komawm/jiku](https://github.com/komawm/jiku) 下载 `v0.0.1` 发布压缩包（`jiku-0.0.1-x86_64-unknown-linux-gnu.tar.gz` 或 `jiku-0.0.1-aarch64-unknown-linux-gnu.tar.gz`），或从源码构建。
+可通过 [komawm/packaging](https://github.com/komawm/packaging) 安装预构建软件包（签名 APT `jiku` 包、AUR `jiku-bin`、Linuxbrew `jiku.rb` 或 `.deb`/`.rpm`/`.apk` 包），从 [komawm/jiku](https://github.com/komawm/jiku) 下载 `v0.0.1` 发布压缩包（`jiku-0.0.1-x86_64-unknown-linux-gnu.tar.gz` 或 `jiku-0.0.1-aarch64-unknown-linux-gnu.tar.gz`），从 npm 安装发布二进制（`@koma-wm/jiku`），或从源码构建。
 
 ### 预构建二进制渠道（`x86_64` 与 `aarch64`）
 
@@ -22,12 +22,18 @@ curl -fsSL https://cdn.komawm.org/apt/setup.sh | sudo bash && sudo apt install -
 curl -fsSLO https://cdn.komawm.org/install/jiku/jiku.rb && brew install --formula ./jiku.rb
 
 # npm / Bun（registry 作用域 `@koma-wm`，因 `komawm` 已被占用）
-bun add -g @koma-wm/jiku@development
+bun add -g @koma-wm/jiku
+# 或
+npm install -g @koma-wm/jiku
 ```
 
-npm 渠道由 `komawm/packaging` 的 CD 工作流在显式派发后发布，因此某个版本可能尚未出现在
-registry 上。在首次 `v0.0.x` npm 发布完成前，请使用上面的 AUR 包、发行版包或发布压缩包；
-registry 上查不到版本是预期情况，不是安装故障。
+两个 shim 都是 Node 脚本（`#!/usr/bin/env node`），因此即使用 bun 安装，`PATH` 上也必须有
+Node.js 18.17 或更高版本。该路径下 bun 只承担包管理器角色（除非显式用 `bun` 启动 shim）。
+
+registry 上已提供 glibc 版 `linux-x64` 与 `linux-arm64` 的 `v0.0.1`，`latest` 与 `development`
+都指向该版本。新版本只会在 `komawm/packaging` 的发布派发之后出现，因此查不到某个版本属于预期，
+不是安装故障。musl/Alpine、macOS 与 Windows 不受支持，launcher 会给出明确提示并拒绝运行。
+若要显式固定预发布渠道，请使用 `@koma-wm/jiku@development`。
 
 ### 从源码构建
 
