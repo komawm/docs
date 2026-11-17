@@ -61,6 +61,25 @@ Runtime dependencies resolved by `pacman` include `seatd` (or `systemd-libs`), `
 - **FreeBSD `15.1-RELEASE`**: Requires `seatd`, `libinput`, `libudev-devd`, `mesa-libs`, `libdisplay-info`, `libxkbcommon`, `wayland`, and `basu` / `consolekit2` for unprivileged VT seat access.
 - **OpenBSD `8+`**: Template provided in `komawm/packaging/openbsd/` (experimental; runtime verification pending).
 
+## Shell Completions
+
+Packaged installs register completions for `koma` and `komactl` in all three shells:
+
+| Shell | Installed file |
+| --- | --- |
+| bash | `/usr/share/bash-completion/completions/{koma,komactl}` |
+| zsh | `/usr/share/zsh/site-functions/_{koma,komactl}` |
+| fish | `/usr/share/fish/vendor_completions.d/{koma,komactl}.fish` |
+
+For a manual install, or a shell that does not read those directories, generate them from the binary that owns the surface:
+
+```bash
+komactl completions fish > ~/.config/fish/completions/komactl.fish
+koma completions fish > ~/.config/fish/completions/koma.fish
+```
+
+The scripts are rendered from the same table that produces each binary's help text, so they only ever list commands and flags that exist.
+
 ## Build from Source
 
 Building from [komawm/koma](https://github.com/komawm/koma) requires `cargo` and Wayland/DRM development headers (`libseat`, `libinput`, `libudev`, `libgbm`, `libxkbcommon`, `libdisplay-info`, `mesa`, `pixman`, `pango`/`cairo` where applicable):

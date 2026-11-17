@@ -71,6 +71,18 @@ If the installed package was built from a tag that contains
 bundled copy from a project dependency (`bun add -d @koma-wm/jiku`). Tags that predate
 the skill catalog, including `v0.0.1`, bundle nothing, so use `npx skills add` there.
 
+## Shell Completions
+
+Packaged installs register `jiku` completions for bash, zsh, and fish. Manual installs generate them from the binary:
+
+```bash
+jiku completions bash > ~/.local/share/bash-completion/completions/jiku
+jiku completions zsh  > ~/.zsh/completions/_jiku
+jiku completions fish > ~/.config/fish/completions/jiku.fish
+```
+
+The script is rendered from the same table that produces `jiku --help`, so nested commands such as `a11y snapshot`, `skills approve`, and `bench run` complete their real flags.
+
 ## API Keys & Environment Variables
 
 `jikud` reads credentials only from environment variables named by `api_key_env` in `config.toml` or `config.lua`. Never store raw API keys inside configuration files.

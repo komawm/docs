@@ -61,6 +61,25 @@ sudo pacman -U koma-0.0.1-1-x86_64.pkg.tar.zst
 - **FreeBSD `15.1-RELEASE`**：`seatd`、`libinput`、`libudev-devd`、`mesa-libs`、`libdisplay-info`、`libxkbcommon`、`wayland`、および非特権 VT シートアクセス用の `basu` / `consolekit2` が必要です。
 - **OpenBSD `8+`**：`komawm/packaging/openbsd/` に実験的テンプレートを用意しています（ランタイム検証は未完了）。
 
+## シェル補完
+
+パッケージ版では `koma` と `komactl` の補完が3つのシェルすべてに登録されます。
+
+| シェル | インストール先 |
+| --- | --- |
+| bash | `/usr/share/bash-completion/completions/{koma,komactl}` |
+| zsh | `/usr/share/zsh/site-functions/_{koma,komactl}` |
+| fish | `/usr/share/fish/vendor_completions.d/{koma,komactl}.fish` |
+
+手動インストールの場合や、これらのディレクトリを読まないシェルの場合は、各バイナリから生成できます。
+
+```bash
+komactl completions fish > ~/.config/fish/completions/komactl.fish
+koma completions fish > ~/.config/fish/completions/koma.fish
+```
+
+補完スクリプトはヘルプ本文と同じ表から生成されるため、実在するコマンドとフラグだけが補完されます。
+
 ## ソースからのビルド
 
 [komawm/koma](https://github.com/komawm/koma) をソースからビルドするには、`cargo` と Wayland/DRM 開発ヘッダ（`libseat`、`libinput`、`libudev`、`libgbm`、`libxkbcommon`、`libdisplay-info`、`mesa`、`pixman`、必要に応じて `pango`/`cairo`）が必要です。
