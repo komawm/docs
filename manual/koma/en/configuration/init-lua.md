@@ -122,7 +122,7 @@ koma.bind("Mod + O", koma.act.overview.toggle(), { desc = "Toggle koma-overview"
 
 ```lua
 koma.env("QT_QPA_PLATFORM", "wayland;xcb")
-koma.env("MOZ_DISABLE_RDD_SANDBOX", "1")
+koma.env("GDK_BACKEND", "wayland")
 koma.env("NIXOS_OZONE_WL", "1")
 ```
 
