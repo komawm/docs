@@ -23,12 +23,12 @@ Reproducible `jiku bench run` benchmarks measure the effect of optional Decision
 
 ![No-Decision + Minimal Raw VirtualPaint ablation render](https://cdn.komawm.org/media/v0.0.1/ablation-nodecision-minimal.png "Baseline VirtualPaint output without Decision gating or enriched grounding (0/4 pass, 136.46 px chamfer).")
 
-## Release Scope: `v0.0.1` vs Planned `v0.1.0`
+## Release Scope: `v0.0.x` vs Planned `v0.1.0`
 
-- **`v0.0.1` (Current Scope)**: Includes the optional `jikud` daemon, `jiku` CLI, dual-framing 12-tool `jiku mcp` stdio server, `config.toml` (`[context]`, `[tts]`, `[avatar]`) and `init.lua`, `jiku a11y` AT-SPI2 grounding, 4-stage `context_budget` compaction, `jiku bench run`, modular `jiku-tts` synthesis + 20 ms lip-sync, WebSocket `jiku avatar serve` VRM stage, `~/JikuBox` classification, full-text local history search, and staged skill review. **Native Wayland layer-shell mascot overlays, live PipeWire microphone capture, and kernel Landlock/seccomp sandboxing do not ship in `v0.0.1`.**
+- **`v0.0.x` (Current Scope)**: Includes the optional `jikud` daemon, `jiku` CLI, dual-framing 12-tool `jiku mcp` stdio server, `config.toml` (`[context]`, `[tts]`, `[avatar]`) and `init.lua`, `jiku a11y` AT-SPI2 grounding, 4-stage `context_budget` compaction, `jiku bench run`, modular `jiku-tts` synthesis + 20 ms lip-sync, WebSocket `jiku avatar serve` VRM stage, `~/JikuBox` classification, full-text local history search, and staged skill review. **Native Wayland layer-shell mascot overlays, live PipeWire microphone capture, and kernel Landlock/seccomp sandboxing do not ship in `v0.0.x`.**
 - **Planned for `v0.1.0` (Tracked in [komawm/jiku Issues](https://github.com/komawm/jiku/issues), Not Yet Shipped)**:
   - **Native Wayland Layer-Shell Avatar Overlays**: Direct compositor layer-shell rendering for `MMD` and `Inochi2D` companions (complementing the browser-hosted `jiku avatar serve` WebSocket VRM stage).
-  - **PipeWire Full-Duplex Microphone Input**: Real-time PipeWire hardware microphone capture for interactive `jiku live` voice sessions (`AudioPlaybackSink` TTS playout already ships in `v0.0.1`).
+  - **PipeWire Full-Duplex Microphone Input**: Real-time PipeWire hardware microphone capture for interactive `jiku live` voice sessions (`AudioPlaybackSink` TTS playout already ships in `v0.0.x`).
   - **Linux Landlock + Seccomp Sandbox**: Kernel-enforced filesystem and syscall confinement for daemon workers and skill subprocesses.
 
 For specifications and protocol contracts, see [komawm/docs](https://github.com/komawm/docs) and [komawm.org/jiku](https://komawm.org/jiku/).

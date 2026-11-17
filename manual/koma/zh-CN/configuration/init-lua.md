@@ -116,6 +116,33 @@ koma.bind("Mod + O", koma.act.overview.toggle(), { desc = "Toggle koma-overview"
 | `koma.on(event, fn)` | 注册生命周期事件回调 |
 | `koma.macro.define(spec)` | 定义参数化 GUI 宏并暴露给 `koma-mcp` |
 
+## 环境变量（`koma.env`）
+
+`koma.env(key, val)` 登记一个变量，Koma 会把它应用到**自己启动的每一个子进程**：快捷键的 `spawn`/`exec` 动作、事件回调里的 `ctx:spawn(...)`，以及宏执行。它不会改变合成器自身的环境——那在进程启动时就已经确定。
+
+```lua
+koma.env("QT_QPA_PLATFORM", "wayland;xcb")
+koma.env("GDK_BACKEND", "wayland")
+koma.env("NIXOS_OZONE_WL", "1")
+```
+
+| 目标 | `koma.env` 是否生效 | 说明 |
+| :--- | :--- | :--- |
+| 由快捷键、`ctx:spawn` 或宏启动的程序 | 是 | 会在 `WAYLAND_DISPLAY`、`DISPLAY`、`KOMA_INSTANCE_SIGNATURE` 以及 `--session` 模式下的 `XDG_*` 默认值之上叠加 |
+| Koma 自身（光标主题与大小、GPU/EGL 后端） | 否 | 启动时从 Koma 自己的环境中读取，必须在启动 Koma 之前设置 |
+| 由 systemd 用户单元、D-Bus 激活或另一个 TTY 启动的客户端 | 否 | 这些进程不会继承 Koma 的子进程环境 |
+| `xwayland-satellite` | 否 | 只接收合成器的套接字与显示变量 |
+
+需要覆盖整个会话的变量——包括 Koma 自身光标使用的 `XCURSOR_SIZE`、`XCURSOR_THEME`，以及由 systemd 或 D-Bus 启动的应用——应写入 `~/.config/environment.d/*.conf`。`koma-session` 包装脚本会先经登录 shell 重新执行，把该环境导入 `systemd --user` 与 D-Bus 激活环境，然后才启动 `koma.service`：
+
+```ini
+# ~/.config/environment.d/90-koma.conf
+XCURSOR_SIZE=24
+XCURSOR_THEME=Adwaita
+```
+
+`--session` 模式已经把 `XDG_SESSION_TYPE=wayland` 与 `XDG_CURRENT_DESKTOP=koma` 传给子进程，因此无需重复设置。
+
 ## 动态状态查询与事件钩子（`MacroContext`、`koma.on`）
 
 按键回调函数与 `koma.on` 监听器都会收到只读上下文快照 `ctx`（`MacroContext`）。受保护窗口的 `app_id` 与 `title` 会自动脱敏为 `"[protected]"`，无头工作区中的窗口不会出现在常规桌面查询中：

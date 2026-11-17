@@ -44,7 +44,7 @@ paru -S koma-bin
 
 # またはソース PKGBUILD ビルド / 検証済みパッケージの直接導入
 paru -S koma
-sudo pacman -U koma-0.0.1-1-x86_64.pkg.tar.zst
+sudo pacman -U koma-0.0.2-1-x86_64.pkg.tar.zst
 ```
 
 `seatd`（または `systemd-libs`）、`libinput`、`mesa`、`libdisplay-info`、`libxkbcommon`、`wayland`、`pixman`、`libglvnd` が依存関係として解決されます。

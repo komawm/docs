@@ -116,6 +116,33 @@ koma.bind("Mod + O", koma.act.overview.toggle(), { desc = "Toggle koma-overview"
 | `koma.on(event, fn)` | Registers a Lua callback on compositor lifecycle events |
 | `koma.macro.define(spec)` | Registers a parameterized automation macro exposed to `koma-mcp` |
 
+## Environment Variables (`koma.env`)
+
+`koma.env(key, val)` records a variable that Koma applies to **every child process it spawns**: keybind `spawn`/`exec` actions, `ctx:spawn(...)` inside event handlers, and macro runs. It does not change the compositor's own environment, which is fixed when the process starts.
+
+```lua
+koma.env("QT_QPA_PLATFORM", "wayland;xcb")
+koma.env("GDK_BACKEND", "wayland")
+koma.env("NIXOS_OZONE_WL", "1")
+```
+
+| Target | Reached by `koma.env` | Notes |
+| :--- | :--- | :--- |
+| Programs launched by a keybind, `ctx:spawn`, or a macro | Yes | Applied on top of `WAYLAND_DISPLAY`, `DISPLAY`, `KOMA_INSTANCE_SIGNATURE`, and the `--session` `XDG_*` defaults |
+| Koma itself (cursor theme and size, GPU/EGL backend) | No | Read from Koma's own environment at start-up; set them before launching Koma |
+| Clients started by systemd user units, D-Bus activation, or another TTY | No | Those processes never inherit Koma's child environment |
+| `xwayland-satellite` | No | It receives only the compositor socket/display variables |
+
+Variables that must reach the whole session — including `XCURSOR_SIZE` and `XCURSOR_THEME` used by Koma's own cursor, and anything started by systemd or D-Bus — belong in `~/.config/environment.d/*.conf`. The `koma-session` wrapper re-executes through the login shell, imports that environment into `systemd --user` and the D-Bus activation environment, and only then starts `koma.service`:
+
+```ini
+# ~/.config/environment.d/90-koma.conf
+XCURSOR_SIZE=24
+XCURSOR_THEME=Adwaita
+```
+
+`XDG_SESSION_TYPE=wayland` and `XDG_CURRENT_DESKTOP=koma` are already exported to children in `--session` mode, so they do not need to be listed.
+
 ## Dynamic Callbacks & Event Hooks (`MacroContext`, `koma.on`)
 
 Keybind functions and `koma.on` listeners receive a read-only snapshot context `ctx` (`MacroContext`). Protected windows have both `app_id` and `title` redacted to `"[protected]"`, and windows on headless workspaces stay isolated from normal user queries:

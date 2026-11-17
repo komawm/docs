@@ -7,7 +7,7 @@
 
 ## 安装 `jikud` 与 `jiku`
 
-可通过 [komawm/packaging](https://github.com/komawm/packaging) 安装预构建软件包（签名 APT `jiku` 包、AUR `jiku-bin`、Linuxbrew `jiku.rb` 或 `.deb`/`.rpm`/`.apk` 包），从 [komawm/jiku](https://github.com/komawm/jiku) 下载 `v0.0.1` 发布压缩包（`jiku-0.0.1-x86_64-unknown-linux-gnu.tar.gz` 或 `jiku-0.0.1-aarch64-unknown-linux-gnu.tar.gz`），从 npm 安装发布二进制（`@koma-wm/jiku`），或从源码构建。
+可通过 [komawm/packaging](https://github.com/komawm/packaging) 安装预构建软件包（签名 APT `jiku` 包、AUR `jiku-bin`、Linuxbrew `jiku.rb` 或 `.deb`/`.rpm`/`.apk` 包），从 [komawm/jiku](https://github.com/komawm/jiku) 下载 `v0.0.2` 发布压缩包（`jiku-0.0.2-x86_64-unknown-linux-gnu.tar.gz` 或 `jiku-0.0.2-aarch64-unknown-linux-gnu.tar.gz`），从 npm 安装发布二进制（`@koma-wm/jiku`），或从源码构建。
 
 ### 预构建二进制渠道（`x86_64` 与 `aarch64`）
 
@@ -30,7 +30,7 @@ npm install -g @koma-wm/jiku
 两个 shim 都是 Node 脚本（`#!/usr/bin/env node`），因此即使用 bun 安装，`PATH` 上也必须有
 Node.js 18.17 或更高版本。该路径下 bun 只承担包管理器角色（除非显式用 `bun` 启动 shim）。
 
-registry 上已提供 glibc 版 `linux-x64` 与 `linux-arm64` 的 `v0.0.1`，`latest` 与 `development`
+registry 上已提供 glibc 版 `linux-x64` 与 `linux-arm64` 的 `v0.0.2`，`latest` 与 `development`
 都指向该版本。新版本只会在 `komawm/packaging` 的发布派发之后出现，因此查不到某个版本属于预期，
 不是安装故障。musl/Alpine、macOS 与 Windows 不受支持，launcher 会给出明确提示并拒绝运行。
 若要显式固定预发布渠道，请使用 `@koma-wm/jiku@development`。
@@ -64,8 +64,8 @@ skill 采用 MIT 许可，并自带独立于 `GPL-3.0-or-later` 产品许可的 
 skill 仍然自包含。
 
 若安装的包由包含 `skills/jiku-desktop-orchestration/` 的 tag 构建，`npx skills experimental_sync`
-也能为项目依赖（`bun add -d @koma-wm/jiku`）链接包内自带的 skill。早于 skill 目录的 tag
-（包括 `v0.0.1`）不含该内容，请使用 `npx skills add`。
+也能为项目依赖（`bun add -d @koma-wm/jiku`）链接包内自带的 skill。`v0.0.2` 起包含该目录，
+`v0.0.1` 及更早版本不含，请对这些版本使用 `npx skills add`。
 
 ## Shell 补全
 

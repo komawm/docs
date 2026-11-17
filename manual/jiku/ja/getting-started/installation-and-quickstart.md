@@ -7,7 +7,7 @@
 
 ## `jikud` と `jiku` のインストール
 
-[komawm/packaging](https://github.com/komawm/packaging) からビルド済みパッケージ（署名付き APT `jiku` パッケージ、AUR `jiku-bin`、Linuxbrew `jiku.rb`、`.deb`/`.rpm`/`.apk` アーカイブ）を導入するか、[komawm/jiku](https://github.com/komawm/jiku) から `v0.0.1` リリースアーカイブ（`jiku-0.0.1-x86_64-unknown-linux-gnu.tar.gz` または `jiku-0.0.1-aarch64-unknown-linux-gnu.tar.gz`）を取得するか、npm（`@koma-wm/jiku`）のリリースバイナリを導入するか、ソースからビルドします。
+[komawm/packaging](https://github.com/komawm/packaging) からビルド済みパッケージ（署名付き APT `jiku` パッケージ、AUR `jiku-bin`、Linuxbrew `jiku.rb`、`.deb`/`.rpm`/`.apk` アーカイブ）を導入するか、[komawm/jiku](https://github.com/komawm/jiku) から `v0.0.2` リリースアーカイブ（`jiku-0.0.2-x86_64-unknown-linux-gnu.tar.gz` または `jiku-0.0.2-aarch64-unknown-linux-gnu.tar.gz`）を取得するか、npm（`@koma-wm/jiku`）のリリースバイナリを導入するか、ソースからビルドします。
 
 ### ビルド済みバイナリチャネル（`x86_64` & `aarch64`）
 
@@ -31,7 +31,7 @@ npm install -g @koma-wm/jiku
 Node.js 18.17 以降が `PATH` に必要です。この経路では Bun はパッケージマネージャーとしてのみ
 機能します（シムを明示的に `bun` で起動する場合を除く）。
 
-レジストリには glibc 向け `linux-x64` と `linux-arm64` の `v0.0.1` が登録されており、`latest` と
+レジストリには glibc 向け `linux-x64` と `linux-arm64` の `v0.0.2` が登録されており、`latest` と
 `development` の両方がそれを指しています。新しいバージョンは `komawm/packaging` のリリース
 ディスパッチ後にのみ現れるため、未登録のバージョンはインストール不具合ではなく想定内です。
 musl/Alpine、macOS、Windows は非対応で、ランチャーは明示的なメッセージを出して拒否します。
@@ -67,8 +67,8 @@ npx skills add komawm/koma --skill koma-desktop -g
 
 インストールしたパッケージが `skills/jiku-desktop-orchestration/` を含むタグから
 ビルドされている場合、プロジェクト依存関係（`bun add -d @koma-wm/jiku`）に対して
-`npx skills experimental_sync` で同梱スキルもリンクできます。スキルカタログ以前の
-タグ（`v0.0.1` を含む）には同梱物が無いため、`npx skills add` を使用してください。
+`npx skills experimental_sync` で同梱スキルもリンクできます。`v0.0.2` 以降は同梱され、
+`v0.0.1` 以前には同梱物が無いため、そのバージョンでは `npx skills add` を使用してください。
 
 ## シェル補完
 

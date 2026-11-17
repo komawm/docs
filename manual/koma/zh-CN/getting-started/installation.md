@@ -44,7 +44,7 @@ paru -S koma-bin
 
 # 或从源码 PKGBUILD 构建 / 安装已校验的离线包
 paru -S koma
-sudo pacman -U koma-0.0.1-1-x86_64.pkg.tar.zst
+sudo pacman -U koma-0.0.2-1-x86_64.pkg.tar.zst
 ```
 
 `pacman` 会自动解析 `seatd`（或 `systemd-libs`）、`libinput`、`mesa`、`libdisplay-info`、`libxkbcommon`、`wayland`、`pixman` 与 `libglvnd` 等运行时依赖。
