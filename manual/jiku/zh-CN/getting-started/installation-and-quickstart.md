@@ -67,6 +67,18 @@ skill 仍然自包含。
 也能为项目依赖（`bun add -d @koma-wm/jiku`）链接包内自带的 skill。早于 skill 目录的 tag
 （包括 `v0.0.1`）不含该内容，请使用 `npx skills add`。
 
+## Shell 补全
+
+发行版软件包会为 `jiku` 注册 bash、zsh、fish 补全。手动安装时从二进制生成：
+
+```bash
+jiku completions bash > ~/.local/share/bash-completion/completions/jiku
+jiku completions zsh  > ~/.zsh/completions/_jiku
+jiku completions fish > ~/.config/fish/completions/jiku.fish
+```
+
+补全脚本与 `jiku --help` 来自同一张表，因此 `a11y snapshot`、`skills approve`、`bench run` 等嵌套命令也能补全真实参数。
+
 ## API 密钥与环境变量
 
 `jikud` 仅从 `config.toml` 或 `config.lua` 中 `api_key_env` 指定的环境变量读取凭据。切勿把明文密钥写入配置文件。

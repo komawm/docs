@@ -70,6 +70,18 @@ npx skills add komawm/koma --skill koma-desktop -g
 `npx skills experimental_sync` で同梱スキルもリンクできます。スキルカタログ以前の
 タグ（`v0.0.1` を含む）には同梱物が無いため、`npx skills add` を使用してください。
 
+## シェル補完
+
+パッケージ版では `jiku` の補完が bash / zsh / fish に登録されます。手動インストールではバイナリから生成してください。
+
+```bash
+jiku completions bash > ~/.local/share/bash-completion/completions/jiku
+jiku completions zsh  > ~/.zsh/completions/_jiku
+jiku completions fish > ~/.config/fish/completions/jiku.fish
+```
+
+`jiku --help` と同じ表から生成されるため、`a11y snapshot`・`skills approve`・`bench run` などの入れ子コマンドも実際のフラグを補完します。
+
 ## API キーと環境変数
 
 `jikud` は `config.toml` または `config.lua` の `api_key_env` に指定された環境変数からのみ認証情報を読み取ります。設定ファイルに生の API キーを直接書かないでください。

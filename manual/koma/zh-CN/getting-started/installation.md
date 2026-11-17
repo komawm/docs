@@ -61,6 +61,25 @@ sudo pacman -U koma-0.0.1-1-x86_64.pkg.tar.zst
 - **FreeBSD `15.1-RELEASE`**：需要 `seatd`、`libinput`、`libudev-devd`、`mesa-libs`、`libdisplay-info`、`libxkbcommon`、`wayland`，以及 `basu` / `consolekit2` 以支持无特权 VT 座席访问。
 - **OpenBSD `8+`**：打包模板位于 `komawm/packaging/openbsd/`（目前仍为实验性模板，待运行时验证）。
 
+## Shell 补全
+
+发行版软件包会为 `koma` 与 `komactl` 注册三种 shell 的补全：
+
+| Shell | 安装路径 |
+| --- | --- |
+| bash | `/usr/share/bash-completion/completions/{koma,komactl}` |
+| zsh | `/usr/share/zsh/site-functions/_{koma,komactl}` |
+| fish | `/usr/share/fish/vendor_completions.d/{koma,komactl}.fish` |
+
+手动安装、或使用不读取这些目录的 shell 时，可以直接从二进制生成：
+
+```bash
+komactl completions fish > ~/.config/fish/completions/komactl.fish
+koma completions fish > ~/.config/fish/completions/koma.fish
+```
+
+补全脚本与帮助文本来自同一张表，因此只会补全真实存在的命令与参数。
+
 ## 从源码构建
 
 从 [komawm/koma](https://github.com/komawm/koma) 构建需要 `cargo` 工具链与 Wayland/DRM 开发头文件（`libseat`、`libinput`、`libudev`、`libgbm`、`libxkbcommon`、`libdisplay-info`、`mesa`、`pixman`，以及按需安装的 `pango`/`cairo`）：
