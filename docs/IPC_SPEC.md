@@ -24,20 +24,20 @@ In alignment with `Koma`'s Unix philosophy (acting as a workspace-isolated deskt
 
 When `koma` starts a session, it creates a mode-`0700` runtime directory under `$XDG_RUNTIME_DIR/koma/<instance_signature>/` and exports `KOMA_INSTANCE_SIGNATURE` to child processes (following the multi-instance convention popularized by [`bspwm`](https://github.com/baskerville/bspwm) and [`Hyprland`](https://github.com/hyprwm/hyprland)):
 
-| Socket Filename | File Mode | Intended Clients | Authentication & Default Authority | 
-| ----- | ----- | ----- | ----- | 
-| **`koma-admin.sock`** | `0600` | `komactl`, `koma-overview`, status bars, human keybind scripts | Verified via kernel peer credentials (`SO_PEERCRED` on Linux, `LOCAL_PEERCRED` on FreeBSD/OpenBSD) and blocked for sandboxed clients tagged via [`security-context-v1`](https://wayland.app/protocols/security-context-v1). Grants full workspace lifecycle, token minting, macro recording, and `Headed` control. | 
-| **`koma-agent.sock`** | `0600` | `koma-mcp`, autonomous agents, untrusted automation scripts | Connection starts in `Unauthenticated` state; the first frame **must** be `auth.authenticate` carrying a valid `CapabilityToken`. Grants access strictly to token-scoped workspaces. | 
+| Socket Filename       | File Mode | Intended Clients                                               | Authentication & Default Authority                                                                                                                                                                                                                                                                                 |
+| --------------------- | --------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`koma-admin.sock`** | `0600`    | `komactl`, `koma-overview`, status bars, human keybind scripts | Verified via kernel peer credentials (`SO_PEERCRED` on Linux, `LOCAL_PEERCRED` on FreeBSD/OpenBSD) and blocked for sandboxed clients tagged via [`security-context-v1`](https://wayland.app/protocols/security-context-v1). Grants full workspace lifecycle, token minting, macro recording, and `Headed` control. |
+| **`koma-agent.sock`** | `0600`    | `koma-mcp`, autonomous agents, untrusted automation scripts    | Connection starts in `Unauthenticated` state; the first frame **must** be `auth.authenticate` carrying a valid `CapabilityToken`. Grants access strictly to token-scoped workspaces.                                                                                                                               |
 
 ### 2.2 Binary Frame Header and `SCM_RIGHTS` Ancillary FDs
 
 To eliminate newline-escaping overhead while remaining trivial to parse in Rust, Go, Python, or Node.js, every message on both sockets uses a 4-byte little-endian length prefix followed by a UTF-8 JSON envelope:
 
-* **Header**: `u32` little-endian payload length in bytes (`1` to `16,777,216`; frames exceeding `16 MiB` trigger immediate socket disconnect with `ERR_FRAME_TOO_LARGE`).
+- **Header**: `u32` little-endian payload length in bytes (`1` to `16,777,216`; frames exceeding `16 MiB` trigger immediate socket disconnect with `ERR_FRAME_TOO_LARGE`).
 
-* **Body**: UTF-8 JSON object conforming to `IpcRequest`, `IpcResponse`, or `IpcEventEnvelope`.
+- **Body**: UTF-8 JSON object conforming to `IpcRequest`, `IpcResponse`, or `IpcEventEnvelope`.
 
-* **Ancillary Control Message (`SCM_RIGHTS`)**: Up to `4` file descriptors (`DMA-BUF` plane FDs or sealed read-only `memfd` descriptors) may accompany a single frame. JSON fields reference attached descriptors by zero-based index (`"fd_index": 0`).
+- **Ancillary Control Message (`SCM_RIGHTS`)**: Up to `4` file descriptors (`DMA-BUF` plane FDs or sealed read-only `memfd` descriptors) may accompany a single frame. JSON fields reference attached descriptors by zero-based index (`"fd_index": 0`).
 
 ### 2.3 Top-Level Rust Wire Envelope (`koma-proto`)
 
@@ -112,11 +112,11 @@ Each `WorkspaceGrant` resolves to one of three monotonically ordered privilege l
 
 Regardless of workspace grant, `koma-render` and `koma-seat` classify the following surfaces as **Protected Surfaces**:
 
-* Active session lock surfaces (`ext-session-lock-v1`);
+- Active session lock surfaces (`ext-session-lock-v1`);
 
-* System privilege escalation dialogs (`polkit-gnome-authentication-agent`, `hyprpolkitagent`, `pinentry-*`);
+- System privilege escalation dialogs (`polkit-gnome-authentication-agent`, `hyprpolkitagent`, `pinentry-*`);
 
-* Configured sensitive `app_id` patterns (e.g., `org.keepassxc.KeePassXC`, `com.bitwarden.desktop`, `1password`).
+- Configured sensitive `app_id` patterns (e.g., `org.keepassxc.KeePassXC`, `com.bitwarden.desktop`, `1password`).
 
 When a Protected Surface is mapped:
 
@@ -130,13 +130,13 @@ When a Protected Surface is mapped:
 
 Every workspace initializes with `epoch = 1` (`u64`) and `lease = Unheld`. The compositor increments `epoch` atomically (`epoch += 1`) on **every** lease ownership or human-takeover boundary:
 
-| Transition Event | Previous Lease State | New Lease State | Epoch Mutation & Side Effects | 
-| ----- | ----- | ----- | ----- | 
-| **`lease.acquire`** (or `auto_acquire` on write) | `Unheld` | `AgentExclusive(A)` | `epoch = N + 1`; returned to agent `A` | 
-| **`lease.release`** (or agent socket disconnect) | `AgentExclusive(A)` | `Unheld` | `epoch = N + 1`; synthesizes `vSeat` key/button releases | 
-| **Human enters `Peek`** (`ws.set_mode("peek")`) | `AgentExclusive(A)` | `AgentExclusive(A)` | **`epoch` unchanged (`N`)**; `seat0` input is shielded so agent `A` continues uninterrupted | 
-| **Human presses `Mod + G` (`Takeover`)** | `AgentExclusive(A)` or `Unheld` | `HumanPreempted` | **`epoch = N + 1`**; flushes held virtual keys/buttons in `< 1 ms`, cancels `Phodopus` `HostOpHandle` coroutines, routes `seat0` focus in, emits `workspace.preempted` | 
-| **Human presses `Mod + G` (Release Takeover)** | `HumanPreempted` | `AgentExclusive(A)` or `Unheld` | **`epoch = N + 2`**; detaches `seat0`, emits `workspace.resumed { new_epoch: N + 2 }` | 
+| Transition Event                                 | Previous Lease State            | New Lease State                 | Epoch Mutation & Side Effects                                                                                                                                          |
+| ------------------------------------------------ | ------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`lease.acquire`** (or `auto_acquire` on write) | `Unheld`                        | `AgentExclusive(A)`             | `epoch = N + 1`; returned to agent `A`                                                                                                                                 |
+| **`lease.release`** (or agent socket disconnect) | `AgentExclusive(A)`             | `Unheld`                        | `epoch = N + 1`; synthesizes `vSeat` key/button releases                                                                                                               |
+| **Human enters `Peek`** (`ws.set_mode("peek")`)  | `AgentExclusive(A)`             | `AgentExclusive(A)`             | **`epoch` unchanged (`N`)**; `seat0` input is shielded so agent `A` continues uninterrupted                                                                            |
+| **Human presses `Mod + G` (`Takeover`)**         | `AgentExclusive(A)` or `Unheld` | `HumanPreempted`                | **`epoch = N + 1`**; flushes held virtual keys/buttons in `< 1 ms`, cancels `Phodopus` `HostOpHandle` coroutines, routes `seat0` focus in, emits `workspace.preempted` |
+| **Human presses `Mod + G` (Release Takeover)**   | `HumanPreempted`                | `AgentExclusive(A)` or `Unheld` | **`epoch = N + 2`**; detaches `seat0`, emits `workspace.resumed { new_epoch: N + 2 }`                                                                                  |
 
 ### 4.2 Deterministic Four-Step Gate on Every Mutating RPC
 
@@ -154,19 +154,19 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
 ### 4.3 Canonical Error Code Registry
 
-| Code | `ErrorSymbol` | Retryable | Meaning | 
-| ----- | ----- | ----- | ----- | 
-| `4000` | `ERR_INVALID_PARAMS` | `false` | Malformed JSON or out-of-range coordinate/parameter | 
-| `4001` | `ERR_FRAME_TOO_LARGE` | `false` | Payload exceeded `16 MiB` wire ceiling | 
-| `4010` | `ERR_UNAUTHENTICATED` | `false` | RPC sent on `koma-agent.sock` prior to `auth.authenticate` | 
-| `4030` | `ERR_CAPABILITY_DENIED` | `false` | Token lacks required grant (`observe_only` vs `control` / `owner`) | 
-| `4032` | `ERR_PROTECTED_SURFACE` | `false` | Target is a lockscreen, Polkit agent, or denylisted password manager | 
-| `4040` | `ERR_NOT_FOUND` | `false` | Unknown `ws_id`, `win_id`, or `macro_id` | 
-| `4090` | `ERR_STALE_EPOCH` | `false` | `expected_epoch != ws.epoch`; caller must re-observe before acting | 
-| `4091` | `ERR_HUMAN_PREEMPTED` | `true` | Human currently holds `Takeover` on `ws_id`; await `workspace.resumed` | 
-| `4092` | `ERR_LEASE_HELD_BY_OTHER` | `true` | Another agent session holds `AgentExclusive` write lease | 
-| `4290` | `ERR_QUOTA_EXCEEDED` | `false` | Exceeded workspace count ceiling, `Phodopus` `Fuel` budget, or heap quota | 
-| `5040` | `ERR_SETTLE_TIMEOUT` | `true` | Action delivered, but surface damage did not settle within `timeout_ms` | 
+| Code   | `ErrorSymbol`             | Retryable | Meaning                                                                   |
+| ------ | ------------------------- | --------- | ------------------------------------------------------------------------- |
+| `4000` | `ERR_INVALID_PARAMS`      | `false`   | Malformed JSON or out-of-range coordinate/parameter                       |
+| `4001` | `ERR_FRAME_TOO_LARGE`     | `false`   | Payload exceeded `16 MiB` wire ceiling                                    |
+| `4010` | `ERR_UNAUTHENTICATED`     | `false`   | RPC sent on `koma-agent.sock` prior to `auth.authenticate`                |
+| `4030` | `ERR_CAPABILITY_DENIED`   | `false`   | Token lacks required grant (`observe_only` vs `control` / `owner`)        |
+| `4032` | `ERR_PROTECTED_SURFACE`   | `false`   | Target is a lockscreen, Polkit agent, or denylisted password manager      |
+| `4040` | `ERR_NOT_FOUND`           | `false`   | Unknown `ws_id`, `win_id`, or `macro_id`                                  |
+| `4090` | `ERR_STALE_EPOCH`         | `false`   | `expected_epoch != ws.epoch`; caller must re-observe before acting        |
+| `4091` | `ERR_HUMAN_PREEMPTED`     | `true`    | Human currently holds `Takeover` on `ws_id`; await `workspace.resumed`    |
+| `4092` | `ERR_LEASE_HELD_BY_OTHER` | `true`    | Another agent session holds `AgentExclusive` write lease                  |
+| `4290` | `ERR_QUOTA_EXCEEDED`      | `false`   | Exceeded workspace count ceiling, `Phodopus` `Fuel` budget, or heap quota |
+| `5040` | `ERR_SETTLE_TIMEOUT`      | `true`    | Action delivered, but surface damage did not settle within `timeout_ms`   |
 
 ## 5. RPC Method Schemas by Namespace
 
@@ -196,11 +196,11 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
 ```
 
-* **`lease.acquire`**: `{ "ws_id": "ws_work_1", "ttl_ms": 60000 }` -> `{ "epoch": 12, "expires_at_ms": 1794580060000 }`.
+- **`lease.acquire`**: `{ "ws_id": "ws_work_1", "ttl_ms": 60000 }` -> `{ "epoch": 12, "expires_at_ms": 1794580060000 }`.
 
-* **`lease.heartbeat`**: `{ "ws_id": "ws_work_1", "expected_epoch": 12, "ttl_ms": 60000 }` -> `{ "epoch": 12 }`.
+- **`lease.heartbeat`**: `{ "ws_id": "ws_work_1", "expected_epoch": 12, "ttl_ms": 60000 }` -> `{ "epoch": 12 }`.
 
-* **`lease.release`**: `{ "ws_id": "ws_work_1", "expected_epoch": 12 }` -> `{ "epoch": 13 }`.
+- **`lease.release`**: `{ "ws_id": "ws_work_1", "expected_epoch": 12 }` -> `{ "epoch": 13 }`.
 
 ### 5.2 Workspace & Sandboxed Process Lifecycle (`ws.*`)
 
@@ -230,13 +230,19 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
 ```
 
-* **`ws.spawn_bound`**:
+- **`ws.spawn_bound`**:
 
-  * Params: `{ "ws_id": "ws_01", "expected_epoch": 1, "argv": ["wps", "thesis.docx"], "isolation_preset": "private_dbus_and_profile", "audio_policy": "muted_virtual_sink" }`.
+  - Params: `{ "ws_id": "ws_01", "expected_epoch": 1, "argv": ["wps", "thesis.docx"], "isolation_preset": "private_dbus_and_profile", "audio_policy": "muted_virtual_sink" }`.
 
-  * Behavior: Allocates a dedicated client `WAYLAND_SOCKET`, tracks [`xdg-activation-v1`](https://wayland.app/protocols/xdg-activation-v1) tokens and [`xdg-foreign-unstable-v2`](https://wayland.app/protocols/xdg-foreign-unstable-v2) portal dialogs back to `ws_01`, and tags [PipeWire](https://docs.pipewire.org/page_overview.html) properties for background audio muting.
+  - Behavior: Allocates a dedicated client `WAYLAND_SOCKET`, tracks [`xdg-activation-v1`](https://wayland.app/protocols/xdg-activation-v1) tokens and [`xdg-foreign-unstable-v2`](https://wayland.app/protocols/xdg-foreign-unstable-v2) portal dialogs back to `ws_01`, and tags [PipeWire](https://docs.pipewire.org/page_overview.html) properties for background audio muting.
 
-* **`ws.set_mode`** (`koma-admin.sock` for `takeover`): `{ "ws_id": "ws_01", "mode": "headless" | "peek" | "takeover", "output": "eDP-1" }`.
+- **`ws.set_mode`** (`koma-admin.sock` for `takeover`): `{ "ws_id": "ws_01", "mode": "headless" | "peek" | "takeover", "output": "eDP-1" }`.
+
+- **`ws.focus`** (`koma-admin.sock` only): `{ "ws_id": "ws_01" }` or `{ "name": "2" }` -> Switches the focused workspace exactly like the `WorkspaceFocus` action (`Mod + 1..0`): output mapping, geometry resync, idle inhibitors, foreign-toplevel updates and the transition animation all follow the keybind path. The session lock gate applies, so the call is rejected while the session is locked.
+
+  Only an **existing** workspace is accepted; an unknown id or name returns `ErrNotFound` instead of creating a workspace, because a status-bar click must not have that side effect (the keybind path keeps its create-on-demand behaviour). Response: `{ "focused": "2", "active_ws_id": "ws_02" }`.
+
+  Shell helper: `komactl ws focus <ws_id|name>`. For a native Waybar module, `ext-workspace-v1` is still the long-term answer; this method covers scripted and per-module bar wiring until then.
 
 ### 5.3 Spatial Inventory, Window Stack & Damage Synchronization (`scene.*`, `win.*`)
 
@@ -268,13 +274,13 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
 ```
 
-* **`scene.tree`**: `{ "ws_id": "ws_01", "win_id": "win_9a_g1", "include_popups": true }` -> Returns exact surface-local and workspace-global bounding boxes for the toplevel (matching [`ext-foreign-toplevel-list-v1`](https://wayland.app/protocols/ext-foreign-toplevel-list-v1) generation-safe IDs) and any open `xdg_popup` menus.
+- **`scene.tree`**: `{ "ws_id": "ws_01", "win_id": "win_9a_g1", "include_popups": true }` -> Returns exact surface-local and workspace-global bounding boxes for the toplevel (matching [`ext-foreign-toplevel-list-v1`](https://wayland.app/protocols/ext-foreign-toplevel-list-v1) generation-safe IDs) and any open `xdg_popup` menus.
 
-* **`win.activate`**: `{ "ws_id": "ws_01", "win_id": "win_9b_g1", "expected_epoch": 4 }` -> Promotes a `Stash` window to the top of the `Deck` and waits for initial frame commit.
+- **`win.activate`**: `{ "ws_id": "ws_01", "win_id": "win_9b_g1", "expected_epoch": 4 }` -> Promotes a `Stash` window to the top of the `Deck` and waits for initial frame commit.
 
-* **`win.set_geometry`**: `{ "ws_id": "ws_01", "win_id": "win_9a_g1", "expected_epoch": 4, "mode": "deck" | "floating" | "fullscreen", "rect": { "x": 0, "y": 0, "w": 1280, "h": 800 } }`.
+- **`win.set_geometry`**: `{ "ws_id": "ws_01", "win_id": "win_9a_g1", "expected_epoch": 4, "mode": "deck" | "floating" | "fullscreen", "rect": { "x": 0, "y": 0, "w": 1280, "h": 800 } }`.
 
-* **`scene.wait_settle`**: `{ "ws_id": "ws_01", "quiet_ms": 60, "timeout_ms": 1000 }` -> Suspends until no `wl_surface.damage_buffer` commits occur for `quiet_ms`.
+- **`scene.wait_settle`**: `{ "ws_id": "ws_01", "quiet_ms": 60, "timeout_ms": 1000 }` -> Suspends until no `wl_surface.damage_buffer` commits occur for `quiet_ms`.
 
 ### 5.4 Zero-Copy Capture & Compositor Overlays (`capture.*`)
 
@@ -312,9 +318,9 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
 ```
 
-* **Overlay Modes**: `"none"`, `"som"` (draws numbered bounding boxes from `AT-SPI2` / semantic hints), or `"grid_225"` (draws a `15x15` [`warpd`](https://github.com/rvaiya/warpd)-style labeled grid tailored to the `255`-option `choice` ceiling of native decisions-API `choice` models).
+- **Overlay Modes**: `"none"`, `"som"` (draws numbered bounding boxes from `AT-SPI2` / semantic hints), or `"grid_225"` (draws a `15x15` [`warpd`](https://github.com/rvaiya/warpd)-style labeled grid tailored to the `255`-option `choice` ceiling of native decisions-API `choice` models).
 
-* **`capture.export_dmabuf`**: Exports multi-planar `DMA-BUF` FDs, DRM `fourcc`, `modifier`, `stride`, and `offset` metadata via `SCM_RIGHTS` (aligned with [`ext-image-capture-source-v1`](https://wayland.app/protocols/ext-image-capture-source-v1) and [`ext-image-copy-capture-v1`](https://wayland.app/protocols/ext-image-copy-capture-v1)) for zero-CPU-copy ring recorders like [`wl-screenrec`](https://github.com/rosalyntg/wl-screenrec) or local GPU tensor import.
+- **`capture.export_dmabuf`**: Exports multi-planar `DMA-BUF` FDs, DRM `fourcc`, `modifier`, `stride`, and `offset` metadata via `SCM_RIGHTS` (aligned with [`ext-image-capture-source-v1`](https://wayland.app/protocols/ext-image-capture-source-v1) and [`ext-image-copy-capture-v1`](https://wayland.app/protocols/ext-image-copy-capture-v1)) for zero-CPU-copy ring recorders like [`wl-screenrec`](https://github.com/rosalyntg/wl-screenrec) or local GPU tensor import.
 
 ### 5.5 Virtual Seat Input, Kinematics & Zero-IME Injection (`vseat.*`)
 
@@ -340,19 +346,19 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
 ```
 
-* **Device & Coordinate Modes**: `vseat.pointer_move`, `vseat.click`, and `vseat.drag` accept `"device": "pointer" | "relative" | "tablet"` (driving [`wl_pointer`](https://wayland.app/protocols/wayland), `zwp_relative_pointer_v1`, or [`tablet-v2`](https://wayland.app/protocols/tablet-v2) respectively) and `"profile": "instant" | "minimum_jerk" | "spring" | "hooke" | "hooke_spring" | "bezier"` with optional Hooke/Bezier fields (`mass`, `damping`, `damping_ratio`, `stiffness`, `epsilon`, `curve`, `bezier`, `duration_ms`, `arc_curvature`). `vseat.drag` routes button presses/releases and motion cleanly through Smithay `ClickGrab`, and `vseat.click` accepts optional `modifiers` and `label`.
+- **Device & Coordinate Modes**: `vseat.pointer_move`, `vseat.click`, and `vseat.drag` accept `"device": "pointer" | "relative" | "tablet"` (driving [`wl_pointer`](https://wayland.app/protocols/wayland), `zwp_relative_pointer_v1`, or [`tablet-v2`](https://wayland.app/protocols/tablet-v2) respectively) and `"profile": "instant" | "minimum_jerk" | "spring" | "hooke" | "hooke_spring" | "bezier"` with optional Hooke/Bezier fields (`mass`, `damping`, `damping_ratio`, `stiffness`, `epsilon`, `curve`, `bezier`, `duration_ms`, `arc_curvature`). `vseat.drag` routes button presses/releases and motion cleanly through Smithay `ClickGrab`, and `vseat.click` accepts optional `modifiers` and `label`.
 
-* **Extended Precision & Visual Indicator RPCs (`v0.0.1`)**:
-  * `vseat.path` / `vseat.stroke`: Multi-waypoint trajectories (`"spline": "auto" | "catmull_rom" | "bezier"`, centripetal $\alpha = 0.5$ interpolation, `250 Hz` adaptive sub-frame resampling, optional mouse `button` hold for spline drawing).
-  * `vseat.relative_move`, `vseat.wheel`, `vseat.hit_test`, `vseat.cursor_label`, and `vseat.cursor_settle`: Relative pointer deltas, wheel scrolling, surface hit-testing without actuation, floating `LabelPill` + `caret_rect` caption control, and smooth cursor settling.
-  * `DeliverySemantics`: IPC errors populate `disposition` (`DeliveryDisposition` + `RetryDisposition`) so callers distinguish `NotDelivered` / `DeliveryUncertain` from verified execution.
-  * `koma-mcp` stdio server lazily connects to `koma-agent.sock`, auto-detects `Content-Length` vs `NDJSON` framing per message, and exposes all 17 core tools (`koma_ping`..`koma_cursor_label`).
+- **Extended Precision & Visual Indicator RPCs (`v0.0.1`)**:
+  - `vseat.path` / `vseat.stroke`: Multi-waypoint trajectories (`"spline": "auto" | "catmull_rom" | "bezier"`, centripetal $\alpha = 0.5$ interpolation, `250 Hz` adaptive sub-frame resampling, optional mouse `button` hold for spline drawing).
+  - `vseat.relative_move`, `vseat.wheel`, `vseat.hit_test`, `vseat.cursor_label`, and `vseat.cursor_settle`: Relative pointer deltas, wheel scrolling, surface hit-testing without actuation, floating `LabelPill` + `caret_rect` caption control, and smooth cursor settling.
+  - `DeliverySemantics`: IPC errors populate `disposition` (`DeliveryDisposition` + `RetryDisposition`) so callers distinguish `NotDelivered` / `DeliveryUncertain` from verified execution.
+  - `koma-mcp` stdio server lazily connects to `koma-agent.sock`, auto-detects `Content-Length` vs `NDJSON` framing per message, and exposes all 17 core tools (`koma_ping`..`koma_cursor_label`).
 
-* **`vseat.key`**: `{ "ws_id": "ws_01", "expected_epoch": 4, "modifiers": ["Ctrl", "Shift"], "key": "End", "action": "tap" | "down" | "up", "hold_ms": 30 }`.
+- **`vseat.key`**: `{ "ws_id": "ws_01", "expected_epoch": 4, "modifiers": ["Ctrl", "Shift"], "key": "End", "action": "tap" | "down" | "up", "hold_ms": 30 }`.
 
-* **`vseat.inject_text`**: `{ "ws_id": "ws_01", "expected_epoch": 4, "text": "Chapter 1: System Architecture\n", "strategy": "auto" }` -> Executes the 3-tier Zero-IME cascade ([`text-input-unstable-v3`](https://wayland.app/protocols/text-input-unstable-v3) direct `commit_string` -> isolated `vSeat` clipboard paste -> [`wtype`](https://github.com/atx/wtype)-style ephemeral XKB keymap).
+- **`vseat.inject_text`**: `{ "ws_id": "ws_01", "expected_epoch": 4, "text": "Chapter 1: System Architecture\n", "strategy": "auto" }` -> Executes the 3-tier Zero-IME cascade ([`text-input-unstable-v3`](https://wayland.app/protocols/text-input-unstable-v3) direct `commit_string` -> isolated `vSeat` clipboard paste -> [`wtype`](https://github.com/atx/wtype)-style ephemeral XKB keymap).
 
-* **`vseat.paste_mime`**: `{ "ws_id": "ws_01", "expected_epoch": 4, "mime_type": "text/tab-separated-values", "data_utf8": "Metric\tLatency\nDecision-1\t150ms\n" }` (or `"fd_index": 0` for large HTML/image payloads).
+- **`vseat.paste_mime`**: `{ "ws_id": "ws_01", "expected_epoch": 4, "mime_type": "text/tab-separated-values", "data_utf8": "Metric\tLatency\nDecision-1\t150ms\n" }` (or `"fd_index": 0` for large HTML/image payloads).
 
 ### 5.6 `Phodopus` Batch Transactions & Macro Recording (`lua.*`, `macro.*`)
 
@@ -374,7 +380,7 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
 ```
 
-* **`macro.record_start` / `macro.record_stop`** (`koma-admin.sock` only): Captures `seat0` demonstrations on a target window, denoises pointer jitter into 9-anchor relative coordinates, and returns parameterized Lua 5.4 source ready to save under `~/.config/koma/lua/macros/`.
+- **`macro.record_start` / `macro.record_stop`** (`koma-admin.sock` only): Captures `seat0` demonstrations on a target window, denoises pointer jitter into 9-anchor relative coordinates, and returns parameterized Lua 5.4 source ready to save under `~/.config/koma/lua/macros/`.
 
 ## 6. Asynchronous Event Stream Specification (`events.subscribe`)
 
@@ -421,14 +427,14 @@ Subscribed connections receive `IpcEventEnvelope` frames (distinguished from `Ip
 
 ### 6.2 Canonical Event Variant Catalog
 
-| Topic | `event.kind` | Trigger & Payload Fields | 
-| ----- | ----- | ----- | 
-| **`workspace.lifecycle`** | `workspace.created` / `mode_changed` / `destroyed` | Emitted on creation, `Headless` <-> `Peek` <-> `Takeover` mode flips, or frame-tier transitions (`frame_tier`). | 
-| **`workspace.lease`** | `workspace.epoch_changed` / `preempted` / `resumed` | Emitted on every `epoch` increment; carries `new_epoch`, `holder`, `flushed_keys`, and `cancelled_lua_tx`. | 
-| **`window.topology`** | `window.mapped` / `activated` / `popup_opened` / `closed` | Carries `win_id`, `app_id`, `title`, `rect`, `is_popup`, and `portal_parent_win_id` (for routed `xdg-desktop-portal` dialogs). | 
-| **`window.damage_settled`** | `window.settled` | Emitted when a burst window settles for the configured quiet interval (`quiet_ms`, `dirty_rect_union`). | 
-| **`security.alerts`** | `security.verification_needed` | Emitted when a Protected Surface (Polkit/password prompt) maps or an agent explicitly signals a 2FA / human verification gate (`reason`, `win_id`). | 
-| **`stream.control`** | `stream.lagged` | Emitted when a slow subscriber overflows its `256`-event non-blocking ring buffer (`dropped_count`, `latest_seq`). | 
+| Topic                       | `event.kind`                                              | Trigger & Payload Fields                                                                                                                            |
+| --------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`workspace.lifecycle`**   | `workspace.created` / `mode_changed` / `destroyed`        | Emitted on creation, `Headless` <-> `Peek` <-> `Takeover` mode flips, or frame-tier transitions (`frame_tier`).                                     |
+| **`workspace.lease`**       | `workspace.epoch_changed` / `preempted` / `resumed`       | Emitted on every `epoch` increment; carries `new_epoch`, `holder`, `flushed_keys`, and `cancelled_lua_tx`.                                          |
+| **`window.topology`**       | `window.mapped` / `activated` / `popup_opened` / `closed` | Carries `win_id`, `app_id`, `title`, `rect`, `is_popup`, and `portal_parent_win_id` (for routed `xdg-desktop-portal` dialogs).                      |
+| **`window.damage_settled`** | `window.settled`                                          | Emitted when a burst window settles for the configured quiet interval (`quiet_ms`, `dirty_rect_union`).                                             |
+| **`security.alerts`**       | `security.verification_needed`                            | Emitted when a Protected Surface (Polkit/password prompt) maps or an agent explicitly signals a 2FA / human verification gate (`reason`, `win_id`). |
+| **`stream.control`**        | `stream.lagged`                                           | Emitted when a slow subscriber overflows its `256`-event non-blocking ring buffer (`dropped_count`, `latest_seq`).                                  |
 
 ### 6.3 Non-Blocking Backpressure Contract
 
@@ -440,16 +446,15 @@ Each subscribed socket owns a bounded `256`-slot ring buffer inside `koma`. If a
 
 3. Critical `workspace.preempted` and `workspace.epoch_changed` state transitions are never silently lost—upon buffer drain, the subscriber immediately receives `stream.lagged` followed by the latest authoritative `epoch` snapshot.
 
-
 ---
 
 ## 7. Administrative Sandbox Jail & Hot-Reload RPCs (`koma-admin.sock`)
 
 In addition to Agent capture/input RPCs on `koma-agent.sock`, `koma-admin.sock` exposes administrative methods used by `komactl` and allowlisted `Jiku` App Profile launchers:
 
-| Method | Parameters | Result & Security Semantics |
-| :--- | :--- | :--- |
+| Method                            | Parameters                                                                       | Result & Security Semantics                                                                                                                                                                                                                        |
+| :-------------------------------- | :------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`sandbox.create_wayland_jail`** | `{ "workspace": "agent:work", "app_id": "chromium", "sandbox_engine": "bwrap" }` | Lazily creates/resolves the target `Headless` `Deck` workspace, binds an isolated mode-`0600` Wayland socket tagged with `ClientState { restricted = true, jailed_workspace = Some(ws_id) }`, and returns `{ "ws_id", "socket_path", "jail_id" }`. |
-| **`sandbox.revoke_wayland_jail`** | `{ "ws_id": "ws_02" }` | Unlinks the jailed Wayland socket and removes its `calloop` listener when the container exits (`komactl sandbox run` RAII drop guard). |
-| **`config.validate`** | `{ "path": null }` | Evaluates `~/.config/koma/init.lua` inside an isolated shadow `PhodopusSandbox` + compiles regex rules without mutating compositor state. |
-| **`config.reload`** | `{ "path": null }` | Atomically swaps declarative config, keybinds, gestures, and rules if shadow validation succeeds. |
+| **`sandbox.revoke_wayland_jail`** | `{ "ws_id": "ws_02" }`                                                           | Unlinks the jailed Wayland socket and removes its `calloop` listener when the container exits (`komactl sandbox run` RAII drop guard).                                                                                                             |
+| **`config.validate`**             | `{ "path": null }`                                                               | Evaluates `~/.config/koma/init.lua` inside an isolated shadow `PhodopusSandbox` + compiles regex rules without mutating compositor state.                                                                                                          |
+| **`config.reload`**               | `{ "path": null }`                                                               | Atomically swaps declarative config, keybinds, gestures, and rules if shadow validation succeeds.                                                                                                                                                  |
