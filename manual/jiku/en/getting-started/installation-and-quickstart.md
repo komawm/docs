@@ -7,7 +7,7 @@
 
 ## Installing `jikud` & `jiku`
 
-Install prebuilt packages from [komawm/packaging](https://github.com/komawm/packaging) (signed APT `jiku` package, AUR `jiku-bin`, Linuxbrew `jiku.rb`, or `.deb`/`.rpm`/`.apk` archives), download the `v0.0.1` release tarballs (`jiku-0.0.1-x86_64-unknown-linux-gnu.tar.gz` or `jiku-0.0.1-aarch64-unknown-linux-gnu.tar.gz`) from [komawm/jiku](https://github.com/komawm/jiku), install the release binaries from npm (`@koma-wm/jiku`), or build from source.
+Install prebuilt packages from [komawm/packaging](https://github.com/komawm/packaging) (signed APT `jiku` package, AUR `jiku-bin`, Linuxbrew `jiku.rb`, or `.deb`/`.rpm`/`.apk` archives), download the `v0.0.2` release tarballs (`jiku-0.0.2-x86_64-unknown-linux-gnu.tar.gz` or `jiku-0.0.2-aarch64-unknown-linux-gnu.tar.gz`) from [komawm/jiku](https://github.com/komawm/jiku), install the release binaries from npm (`@koma-wm/jiku`), or build from source.
 
 ### Prebuilt Binary Channels (`x86_64` & `aarch64`)
 
@@ -31,7 +31,7 @@ Both shims are Node scripts (`#!/usr/bin/env node`), so Node.js 18.17 or newer
 must be on `PATH` even when you install with Bun. Bun is only the package manager
 on this path unless you invoke the shim with `bun` explicitly.
 
-The registry carries `v0.0.1` for `linux-x64` and `linux-arm64` on glibc, with
+The registry carries `v0.0.2` for `linux-x64` and `linux-arm64` on glibc, with
 `latest` and `development` both pointing at it. Newer versions appear only after a
 `komawm/packaging` release dispatch, so a version that is not on the registry yet
 is expected rather than a broken install. musl/Alpine, macOS, and Windows are not
@@ -68,8 +68,9 @@ The skill is MIT licensed and carries its own `LICENSE`, independent of the
 
 If the installed package was built from a tag that contains
 `skills/jiku-desktop-orchestration/`, `npx skills experimental_sync` also links that
-bundled copy from a project dependency (`bun add -d @koma-wm/jiku`). Tags that predate
-the skill catalog, including `v0.0.1`, bundle nothing, so use `npx skills add` there.
+bundled copy from a project dependency (`bun add -d @koma-wm/jiku`). `v0.0.2` and later
+include the catalog; `v0.0.1` predates it and bundles nothing, so use `npx skills add` for
+that version.
 
 ## Shell Completions
 

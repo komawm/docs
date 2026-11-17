@@ -44,7 +44,7 @@ paru -S koma-bin
 
 # Or build from source PKGBUILD / install downloaded package
 paru -S koma
-sudo pacman -U koma-0.0.1-1-x86_64.pkg.tar.zst
+sudo pacman -U koma-0.0.2-1-x86_64.pkg.tar.zst
 ```
 
 Runtime dependencies resolved by `pacman` include `seatd` (or `systemd-libs`), `libinput`, `mesa`, `libdisplay-info`, `libxkbcommon`, `wayland`, `pixman`, and `libglvnd`.

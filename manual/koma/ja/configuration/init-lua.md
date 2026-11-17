@@ -116,6 +116,33 @@ koma.bind("Mod + O", koma.act.overview.toggle(), { desc = "Toggle koma-overview"
 | `koma.on(event, fn)` | ライフサイクルイベントの Lua コールバックを登録 |
 | `koma.macro.define(spec)` | パラメータ化マクロを定義し `koma-mcp` に公開 |
 
+## 環境変数（`koma.env`）
+
+`koma.env(key, val)` は、Koma が**起動するすべての子プロセス**に適用する変数を登録します。対象はキーバインドの `spawn`/`exec` アクション、イベントハンドラ内の `ctx:spawn(...)`、マクロ実行です。コンポジタ自身の環境はプロセス起動時に確定するため変更できません。
+
+```lua
+koma.env("QT_QPA_PLATFORM", "wayland;xcb")
+koma.env("MOZ_DISABLE_RDD_SANDBOX", "1")
+koma.env("NIXOS_OZONE_WL", "1")
+```
+
+| 対象 | `koma.env` の適用 | 補足 |
+| :--- | :--- | :--- |
+| キーバインド、`ctx:spawn`、マクロから起動したプログラム | あり | `WAYLAND_DISPLAY`・`DISPLAY`・`KOMA_INSTANCE_SIGNATURE` と `--session` 時の `XDG_*` 既定値の上に重ねて適用されます |
+| Koma 自身（カーソルのテーマとサイズ、GPU/EGL バックエンド） | なし | 起動時に Koma 自身の環境から読み取ります。Koma を起動する前に設定してください |
+| systemd ユーザーユニット、D-Bus アクティベーション、別 TTY から起動したクライアント | なし | これらのプロセスは Koma の子プロセス環境を継承しません |
+| `xwayland-satellite` | なし | コンポジタのソケット／ディスプレイ変数のみを受け取ります |
+
+セッション全体に届ける必要がある変数——Koma 自身のカーソルが使う `XCURSOR_SIZE`・`XCURSOR_THEME`、および systemd や D-Bus 経由で起動するアプリ——は `~/.config/environment.d/*.conf` に置いてください。`koma-session` ラッパーはログインシェル経由で再実行し、その環境を `systemd --user` と D-Bus アクティベーション環境に取り込んでから `koma.service` を起動します。
+
+```ini
+# ~/.config/environment.d/90-koma.conf
+XCURSOR_SIZE=24
+XCURSOR_THEME=Adwaita
+```
+
+`--session` モードでは `XDG_SESSION_TYPE=wayland` と `XDG_CURRENT_DESKTOP=koma` が既に子プロセスへ渡されるため、記述する必要はありません。
+
 ## 動的スナップショットとイベントフック（`MacroContext`, `koma.on`）
 
 キーバインドのコールバックや `koma.on` リスナーには、読み取り専用のスナップショット `ctx`（`MacroContext`）が渡されます。保護対象ウィンドウは `app_id` と `title` の両方が `"[protected]"` にマスクされ、ヘッドレスワークスペースのウィンドウは通常クエリから分離されます。

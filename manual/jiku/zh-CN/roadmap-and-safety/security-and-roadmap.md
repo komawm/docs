@@ -23,12 +23,12 @@ Jiku 明确区分当前 `v0.0.x` 版本中已经实现的权限与隔离控制�
 
 ![无决策模型与仅极简原始状态的 VirtualPaint 消融成图](https://cdn.komawm.org/media/v0.0.1/ablation-nodecision-minimal.png "未启用决策门控与系统锚定时的基线输出（0/4 通过，136.46 px 倒角误差）。")
 
-## 版本范围说明：`v0.0.1` 与规划中的 `v0.1.0`
+## 版本范围说明：`v0.0.x` 与规划中的 `v0.1.0`
 
-- **`v0.0.1`（当前范围）**：包含可选的 `jikud` 守护进程、`jiku` 命令行、支持双帧格式的 12 工具 `jiku mcp` stdio 服务、`config.toml`（`[context]`、`[tts]`、`[avatar]`）与 `init.lua` 配置、`jiku a11y` AT-SPI2 锚定、四阶段 `context_budget` 压缩、`jiku bench run` 模块化评测、模块化 `jiku-tts` 语音与 20 ms 口型提取、WebSocket `jiku avatar serve` VRM 舞台、`~/JikuBox` 目录分类、本地全文历史检索以及技能暂存审批。**`v0.0.1` 暂不包含原生 Wayland layer-shell 桌面虚拟形象叠加层、PipeWire 实时麦克风采集及内核态 Landlock/seccomp 强制沙箱。**
+- **`v0.0.x`（当前范围）**：包含可选的 `jikud` 守护进程、`jiku` 命令行、支持双帧格式的 12 工具 `jiku mcp` stdio 服务、`config.toml`（`[context]`、`[tts]`、`[avatar]`）与 `init.lua` 配置、`jiku a11y` AT-SPI2 锚定、四阶段 `context_budget` 压缩、`jiku bench run` 模块化评测、模块化 `jiku-tts` 语音与 20 ms 口型提取、WebSocket `jiku avatar serve` VRM 舞台、`~/JikuBox` 目录分类、本地全文历史检索以及技能暂存审批。**`v0.0.x` 暂不包含原生 Wayland layer-shell 桌面虚拟形象叠加层、PipeWire 实时麦克风采集及内核态 Landlock/seccomp 强制沙箱。**
 - **规划中的 `v0.1.0`（在 [komawm/jiku Issues](https://github.com/komawm/jiku/issues) 中跟踪，尚未发布）**：
   - **原生 Wayland Layer-Shell 虚拟形象叠加层**：面向 `MMD` 与 `Inochi2D` 模型的直接合成器层渲染（与当前浏览器承载的 `jiku avatar serve` WebSocket VRM 舞台互补）。
-  - **PipeWire 全双工实时麦克风采集**：用于交互式 `jiku live` 实时语音对话的硬件音频输入（`AudioPlaybackSink` TTS 播放已在 `v0.0.1` 提供）。
+  - **PipeWire 全双工实时麦克风采集**：用于交互式 `jiku live` 实时语音对话的硬件音频输入（`AudioPlaybackSink` TTS 播放已在 `v0.0.x` 提供）。
   - **Linux Landlock + Seccomp 沙箱**：由内核强制执行的文件系统与系统调用限制，用于约束守护进程工作单元与外部技能子进程。
 
 相关规范与协议约定请参考 [komawm/docs](https://github.com/komawm/docs) 与 [komawm.org/jiku](https://komawm.org/jiku/)。
