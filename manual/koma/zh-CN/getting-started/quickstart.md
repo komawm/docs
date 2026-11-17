@@ -15,7 +15,7 @@ Koma 会在打开任何显示设备、座席或 DRM 节点之前先完成命令�
 | `koma --tty` | 通过 `libseat`（`seatd`/`logind`）、`udev`、`DRM/KMS` 与 `libinput` 直接接管 Linux VT | 裸机 TTY 启动或隔离 QEMU/KVM `virtio-vga` 冒烟测试 |
 | `koma --session` | 登录会话模式（`koma-session`、`greetd`、`systemd --user`） | 导入 `WAYLAND_DISPLAY`、`DISPLAY`、`XDG_CURRENT_DESKTOP=koma`、`XDG_SESSION_TYPE=wayland`、`KOMA_INSTANCE_SIGNATURE` 至 `systemd --user` 与 D-Bus，并向 `$NOTIFY_SOCKET`/`$NOTIFY_FD` 发送 `READY=1` |
 | `koma --headless-check` | 命令行与状态机自检 | CI、打包校验与安装后检查 |
-| `--spawn <CMD>` | 合成器套接字就绪后启动指定命令 | 如 `koma --winit --spawn foot` 或 `koma --tty --spawn ghostty` |
+| `--spawn <CMD>` | 合成器套接字就绪后启动指定命令 | 如 `koma --winit --spawn foot` 或 `koma --tty --spawn bitty` |
 | `-c, --config <PATH>` | 覆盖默认 `$XDG_CONFIG_HOME/koma/init.lua` 路径 | 测试临时或备用 Lua 配置 |
 
 > [!NOTE]
@@ -25,7 +25,7 @@ Koma 会在打开任何显示设备、座席或 DRM 节点之前先完成命令�
 
 | 组合键 | 绑定动作 | 说明 |
 | :--- | :--- | :--- |
-| `Mod + Return` | `spawn({ "ghostty" })` | 启动默认终端 |
+| `Mod + Return` | `spawn({ "bitty" })` | 启动默认终端（Bitty），缺失时回退到 `foot` |
 | `Mod + Q` | `window.close()` | 关闭当前聚焦窗口 |
 | `Mod + V` | `window.float_toggle()` | 切换窗口浮动状态 |
 | `Mod + F` | `window.fullscreen_toggle()` | 切换全屏 |

@@ -258,7 +258,7 @@ koma.appearance({
 
 ```
 ---@type BindHandle
-local term_bind = koma.bind("Mod + Return", koma.act.spawn({ "ghostty" }), {
+local term_bind = koma.bind("Mod + Return", koma.act.spawn({ "bitty" }), {
     desc = "Launch Ghostty terminal",
     cooldown_ms = 150,
 })
@@ -432,7 +432,7 @@ koma.rule.window({
 -- 6. Per-Window Visual Rice Overrides (opacity, animation style, blur/shadow suppression, border color)
 koma.rule.window({
     name = "terminal-rice",
-    matches = { { app_id = "^(foot|ghostty)$" } },
+    matches = { { app_id = "^(bitty|foot|run\\.bitty\\.Bitty)$" } },
     opacity = 0.96,
     inactive_opacity = 0.84,
     animation = "popin 88%",
@@ -765,7 +765,7 @@ koma.appearance({
 })
 
 -- 5. Core Keybindings
-koma.bind("Mod + Return", koma.act.spawn({ "ghostty" }), { desc = "Open terminal" })
+koma.bind("Mod + Return", koma.act.spawn({ "bitty" }), { desc = "Open terminal" })
 koma.bind("Mod + D",      koma.act.spawn({ "fuzzel" }),  { desc = "Application launcher" })
 koma.bind("Mod + Q",      koma.act.window.close(),       { desc = "Close active window" })
 koma.bind("Mod + Tab",    koma.act.overview.toggle(),    { desc = "Toggle workspace overview" })

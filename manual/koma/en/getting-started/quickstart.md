@@ -15,7 +15,7 @@ Koma parses CLI options before opening any display, seat, or DRM device:
 | `koma --tty` | Direct bare-metal Linux VT via `libseat` (`seatd`/`logind`), `udev`, `DRM/KMS`, `libinput` | Standalone TTY launch or isolated QEMU/KVM `virtio-vga` smoke tests |
 | `koma --session` | Login session mode (`koma-session`, `greetd`, `systemd --user`) | Imports `WAYLAND_DISPLAY`, `DISPLAY`, `XDG_CURRENT_DESKTOP=koma`, `XDG_SESSION_TYPE=wayland`, `KOMA_INSTANCE_SIGNATURE` into `systemd --user` & D-Bus, then signals `$NOTIFY_SOCKET`/`$NOTIFY_FD` `READY=1` |
 | `koma --headless-check` | CLI & state-machine self-check | CI, packaging, and post-install sanity verification |
-| `--spawn <CMD>` | Spawns `<CMD>` once the compositor socket is ready | e.g. `koma --winit --spawn foot` or `koma --tty --spawn ghostty` |
+| `--spawn <CMD>` | Spawns `<CMD>` once the compositor socket is ready | e.g. `koma --winit --spawn foot` or `koma --tty --spawn bitty` |
 | `-c, --config <PATH>` | Overrides `$XDG_CONFIG_HOME/koma/init.lua` | Testing alternate Lua configs |
 
 > [!NOTE]
@@ -25,7 +25,7 @@ Koma parses CLI options before opening any display, seat, or DRM device:
 
 | Chord | Action | Description |
 | :--- | :--- | :--- |
-| `Mod + Return` | `spawn({ "ghostty" })` | Launch default terminal |
+| `Mod + Return` | `spawn({ "bitty" })` | Launch the default terminal (Bitty), falling back to `foot` |
 | `Mod + Q` | `window.close()` | Close focused window |
 | `Mod + V` | `window.float_toggle()` | Toggle floating state |
 | `Mod + F` | `window.fullscreen_toggle()` | Toggle fullscreen |

@@ -15,7 +15,7 @@ CLI オプションはディスプレイ、シート、または DRM デバイ�
 | `koma --tty` | `libseat`（`seatd`/`logind`）・`udev`・`DRM/KMS`・`libinput` で VT へ直接起動 | 実機 TTY 起動または隔離された QEMU/KVM `virtio-vga` テスト |
 | `koma --session` | ログインセッションモード（`koma-session`、`greetd`、`systemd --user`） | `WAYLAND_DISPLAY`、`DISPLAY`、`XDG_CURRENT_DESKTOP=koma`、`XDG_SESSION_TYPE=wayland`、`KOMA_INSTANCE_SIGNATURE` を `systemd --user` と D-Bus へ取り込み、`$NOTIFY_SOCKET`/`$NOTIFY_FD` へ `READY=1` を通知 |
 | `koma --headless-check` | CLI と設定ステートマシンの自己診断 | CI、パッケージング、導入後の動作確認 |
-| `--spawn <CMD>` | コンポジタソケットの準備完了後に `<CMD>` を起動 | 例：`koma --winit --spawn foot`、`koma --tty --spawn ghostty` |
+| `--spawn <CMD>` | コンポジタソケットの準備完了後に `<CMD>` を起動 | 例：`koma --winit --spawn foot`、`koma --tty --spawn bitty` |
 | `-c, --config <PATH>` | `$XDG_CONFIG_HOME/koma/init.lua` 以外の設定ファイルを指定 | 代替 Lua 設定のテスト |
 
 > [!NOTE]
@@ -25,7 +25,7 @@ CLI オプションはディスプレイ、シート、または DRM デバイ�
 
 | キー / 操作 | アクション | 説明 |
 | :--- | :--- | :--- |
-| `Mod + Return` | `spawn({ "ghostty" })` | 既定ターミナルを起動 |
+| `Mod + Return` | `spawn({ "bitty" })` | 既定ターミナル（Bitty）を起動。無い場合は `foot` にフォールバック |
 | `Mod + Q` | `window.close()` | フォーカス中のウィンドウを閉じる |
 | `Mod + V` | `window.float_toggle()` | フローティング切替 |
 | `Mod + F` | `window.fullscreen_toggle()` | フルスクリーン切替 |
