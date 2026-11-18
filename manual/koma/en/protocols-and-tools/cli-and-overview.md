@@ -10,10 +10,11 @@
 | :--- | :--- | :--- |
 | `komactl validate [path/to/init.lua]` | Offline | Evaluates `init.lua` in the isolated Lua sandbox, validates rule regexes & gestures, and prints resource counts |
 | `komactl reload [path/to/init.lua]` | IPC (`admin.sock`) | Sends `config.reload` and atomically swaps live compositor configuration |
-| `komactl config-status` | IPC (`admin.sock`) + offline | Prints active config path, reload generation, last error if any (`config.status`), plus `template.{installed_version,shipped_version,outdated,missing_files}` for the generated scaffold |
+| `komactl config-status` | IPC (`admin.sock`) + offline | Prints active config path, reload generation, last error if any (`config.status`), the effective `input.pointer` / `input.touchpad` knobs, plus `template.{init_lua,present,installed_version,shipped_version,outdated,missing_files}` for the generated scaffold |
 | `komactl init [dir] [--force]` | Offline | Scaffolds `init.lua`, `lua/{input,workspaces,appearance,window_rules,keybinds}.lua`, and `lua/macros/example.lua`; refuses to overwrite existing files unless `--force` is given |
 | `komactl gen-types` | Offline | Emits deterministic `LuaCATS` stubs for `koma-types` (`types/koma.lua`) |
-| `komactl inventory` | IPC (`admin.sock`) | Prints live monitors, workspaces, `Epoch` counters, Deck windows, and Stash slots (`scene.inventory`) |
+| `komactl inventory` | IPC (`admin.sock`) | Prints live monitors, workspaces, `Epoch` counters, Deck windows, and Stash slots (`scene.inventory`); exactly one workspace carries `"focused": true` |
+| `komactl win move-to-workspace <ws_id\|name> [--follow]` | IPC (`admin.sock`) | Moves the active window of the focused workspace to an existing workspace (`win.move_to_workspace`); `--follow` switches to the destination, without it the source keeps focus |
 | `komactl token mint [label]` | IPC (`admin.sock`) | Mints a scoped `CapabilityToken` (`ttl_secs = 28800`, `can_create_headless = true`, `max_owned_workspaces = 4`) |
 | `komactl capture [ws_id] [out.rgba]` | IPC (`admin.sock`) | Captures a zero-copy `SCM_RIGHTS` sealed `memfd` frame with `grid_225` overlay (`ws_id` default `ws_01`) |
 | `komactl sandbox <subcmd>` | Container + IPC | Runs `bwrap` or rootless `podman` GUI containers inside an isolated `Headless` workspace |
@@ -36,6 +37,12 @@ lua/macros/example.lua
 `init.lua` is a thin router and `lua/keybinds.lua` contains the full default keymap expanded as `koma.bind(...)` calls, so the generated file and the built-in fallback keymap cannot drift. Every generated file starts with the machine-readable marker `-- koma-config-template: <version>`.
 
 Existing files are never overwritten: `komactl init` refuses and lists the conflicting paths unless you pass `--force`. After editing, run `komactl validate` and `komactl reload`. `komactl config-status` compares the on-disk marker with the shipped template and reports `template.installed_version`, `template.shipped_version`, `template.outdated`, and `template.missing_files`.
+
+Two further `template` fields disambiguate the cases the version comparison cannot see: `template.init_lua` is the exact path that was inspected (resolved from `KOMA_CONFIG`, then `$XDG_CONFIG_HOME/koma/init.lua`, then `$HOME/.config/koma/init.lua`), and `template.present` says whether that file exists at all. A hand-written `init.lua` without the marker reports `installed_version: null` and `outdated: false` rather than looking stale, while a half-deleted scaffold shows up in `missing_files`.
+
+## Effective Input in `komactl config-status`
+
+The same report embeds the compositor's `config.status`, whose `input.pointer` and `input.touchpad` blocks list the values Koma actually applies: `accel_speed`, `accel_profile`, `natural_scroll`, `scroll_factor`, `follow_mouse`, plus `tap_to_click` and `disable_while_typing` for touchpads. A `null` means the key was never written in `init.lua`, so libinput's built-in default applies; `accel_profile` is either `"adaptive"` (the default curve) or `"flat"` (no acceleration). When the pointer travels a different distance than in another compositor at the same physical movement, compare `accel_speed` and `accel_profile` first — an unset profile explains most of the difference.
 
 ## `komactl sandbox` Container Isolation
 

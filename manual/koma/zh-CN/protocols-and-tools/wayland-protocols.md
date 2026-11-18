@@ -17,6 +17,57 @@ Koma 实现了桌面面板、锁屏、Portal、远程桌面与输入法所需的
 | `zwlr_foreign_toplevel_manager_v1` 与 `ext_foreign_toplevel_list_v1` | 任务栏窗口列表、激活、最小化与关闭控制 | 禁止沙箱绑定且在锁屏下自动保护 |
 | `zwlr_virtual_pointer_manager_v1` 与 `zwp_keyboard_shortcuts_inhibit_manager_v1` | 远程桌面虚拟指针与快捷键抑制传递（`RustDesk`） | 禁止沙箱客户端绑定；始终保留 `Mod + G` 抢占与 VT 切换不进入抑制 |
 
+## 工作区模型（`ext-workspace-v1`）与 Waybar
+
+Koma 将 [`ext-workspace-v1`](https://wayland.app/protocols/ext-workspace-v1)（staging）以 `ext_workspace_manager_v1` 的形式向不受限客户端公开，状态栏因此无需轮询运行时文件即可列出、跟踪并切换工作区。被沙箱标记的客户端以及经 `wp_security_context_manager_v1` 接入的客户端，与 `zwlr_layer_shell_v1` 一样无法绑定该全局对象。
+
+| 状态栏收到的信息 | Koma 的取值 |
+| :--- | :--- |
+| 分组 | 仅有 1 个 `ext_workspace_group_handle_v1`，通过 `output_enter` / `output_leave` 持有全部输出 |
+| 工作区 | 每个工作区对应 1 个 `ext_workspace_handle_v1`（包含 `special:` 浮层） |
+| `id` | Koma 工作区 ID（`ws_01`）：稳定的门牌 ID，而非条带序号 |
+| `name` | 你配置的工作区名（`1`、`chat`、`special:magic`） |
+| `coordinates` | 条带顺序中唯一的 1 维索引：数字名先按数值排序，其后是命名工作区 |
+| `capabilities` | 仅 `activate` |
+| `state` | 工作区处于显示状态（已分配到输出、正在打开的 `special:` 浮层，或为 `active_ws_id`）时为 `active`，其余为 `hidden`；不会同时为两者，也不会两者皆无 |
+
+属性事件仅发送增量，每个批次以 `done` 结束，因此请缓存已收到的值，不要凭单个事件重建状态。`workspace.activate` 走与 `Mod + 1..0` 相同的切换路径，锁屏期间会被忽略。
+
+### Waybar 的 `ext/workspaces`
+
+```jsonc
+// ~/.config/waybar/config.jsonc
+"modules-center": ["ext/workspaces"],
+
+"ext/workspaces": {
+  "format": "{name} {icon}",
+  "on-click": "activate",
+  "ignore-hidden": true,
+  "sort-by-name": true,
+  "format-icons": {
+    "active": "●",
+    "default": "○"
+  }
+}
+```
+
+```css
+/* ~/.config/waybar/style.css */
+#workspaces button {
+  padding: 0 6px;
+  border-radius: 4px;
+}
+#workspaces button.active {
+  background: #7aa2f7;
+  color: #16161e;
+}
+#workspaces button.hidden {
+  opacity: 0.55;
+}
+```
+
+`icon` / `format-icons` 可用（该模块只匹配 `active` 与 `default` 键，工作区名键同样生效），但 `urgent` 永远不会触发：Koma 没有窗口紧急度概念，因此不存在紧急工作区。请保留 `"sort-by-name": true`；使用 `"sort-by-id": true` 会按门牌 ID（`ws_01`、`ws_02`…）排序，只有 ID 恰好与创建顺序一致时才看起来正确。配置 `"on-click-right": "close"` 或 `"deactivate"` 不会有任何效果——Koma 只公开 `activate`。
+
 ## 截屏与 `xdg-desktop-portal`
 
 - **`zwlr_screencopy_manager_v1` (v3)**：支持 SHM 与 DMA-BUF 零拷贝截屏（兼容 `grim`、`wayshot`、`slurp`），每帧仅发出单个 `buffer`/`linux_dmabuf` 事件，并严格执行 `block_out_from = "screencopy"`/`"all"` 黑屏掩码及 `ext-session-lock-v1` 拒截保护。

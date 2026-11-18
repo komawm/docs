@@ -6,10 +6,28 @@ Koma separates desktop administration from AI automation using two Unix domain s
 
 | Socket | Mode & Authentication | Allowed Operations |
 | :--- | :--- | :--- |
-| **`koma-admin.sock`** | `0600`, same-UID kernel credentials (`SO_PEERCRED` / `LOCAL_PEERCRED` / `getpeereid`); blocked for sandboxed Wayland clients | `config.reload`, `config.status`, `auth.mint_token`, `sandbox.create_wayland_jail`, `sandbox.revoke_wayland_jail`, `scene.inventory`, `capture.frame`, human takeover (`ws.set_mode`) |
+| **`koma-admin.sock`** | `0600`, same-UID kernel credentials (`SO_PEERCRED` / `LOCAL_PEERCRED` / `getpeereid`); blocked for sandboxed Wayland clients | `config.reload`, `config.status`, `auth.mint_token`, `sandbox.create_wayland_jail`, `sandbox.revoke_wayland_jail`, `scene.inventory`, `capture.frame`, `ws.focus`, `win.move_to_workspace`, human takeover (`ws.set_mode`) |
 | **`koma-agent.sock`** | `0600`, first frame must be `auth.authenticate` with a `CapabilityToken` | Scoped `ws.create`, `capture.frame`, `vseat.*`, `macro.exec` / `lua.exec_tx`, restricted to granted or leased workspaces |
 
 Frame `#1` on `koma-agent.sock` must be `auth.authenticate` carrying a `CapabilityToken` minted via `komactl token mint` (or `auth.mint_token` on `koma-admin.sock`). Unauthenticated requests or admin RPCs on `koma-agent.sock` are rejected immediately. Both sockets use 4-byte little-endian length-prefixed UTF-8 JSON frames (up to `16 MiB`) with optional `SCM_RIGHTS` file descriptors.
+
+## Bar-Driven Workspace Switches & Moves
+
+Status bars have three routes to change what is on screen, in order of preference:
+
+- **Native Wayland (`ext-workspace-v1`)**: a `waybar` `ext/workspaces` module calls `workspace.activate`, and Koma switches through the same path as `Mod + 1..0`. No IPC, no token; see [Panels, Portals, IME & Apps](/docs/protocols-and-tools/wayland-protocols/).
+- **`ws.focus`** (`koma-admin.sock`): `{ "ws_id": "ws_02" }` or `{ "name": "2" }` for scripted wiring. Only existing workspaces are accepted (`ErrNotFound`), and the call is rejected while the session is locked.
+- **`win.move_to_workspace`** (alias `win.move`, `koma-admin.sock`): `{ "workspace": "2", "follow": false }` moves the active window of the focused workspace — the open `special:` overlay when one is visible, otherwise `active_ws_id` — into an existing workspace. `"follow": true` behaves like Hyprland `movetoworkspace` (switch there and focus the window); `"follow": false` behaves like `movetoworkspacesilent` (the source keeps focus). The reply is `{ win_id, from_ws_id, to_ws_id, followed, moved, active_ws_id }`; an unknown destination or an empty source is `ErrNotFound`, and nothing is ever created.
+
+```bash
+# Silent: the window leaves for workspace 3, this workspace keeps focus
+komactl win move-to-workspace 3
+
+# Follow: workspace 3 becomes active and the window keeps keyboard focus
+komactl win move-to-workspace 3 --follow
+```
+
+For rendering, `scene.inventory` marks exactly one workspace with `"focused": true` (the `active_ws_id`), so a bar that does not speak `ext-workspace-v1` can read focus from one call instead of tracking `workspace.focused` events.
 
 ## Monotonic `Epoch` Concurrency Fencing
 

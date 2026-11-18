@@ -10,10 +10,11 @@
 | :--- | :--- | :--- |
 | `komactl validate [path/to/init.lua]` | 离线 | 在隔离 Lua 沙箱中求值 `init.lua`，校验规则正则与手势并输出统计 |
 | `komactl reload [path/to/init.lua]` | IPC（`admin.sock`） | 调用 `config.reload` 原子热重载合成器配置 |
-| `komactl config-status` | IPC（`admin.sock`）+ 离线 | 查看当前配置路径、重载代数与最近报错（`config.status`），并报告生成模板的 `template.{installed_version,shipped_version,outdated,missing_files}` |
+| `komactl config-status` | IPC（`admin.sock`）+ 离线 | 查看当前配置路径、重载代数与最近报错（`config.status`）、实际生效的 `input.pointer` / `input.touchpad` 参数，并报告生成模板的 `template.{init_lua,present,installed_version,shipped_version,outdated,missing_files}` |
 | `komactl init [dir] [--force]` | 离线 | 生成 `init.lua`、`lua/{input,workspaces,appearance,window_rules,keybinds}.lua` 与 `lua/macros/example.lua`；除非传入 `--force`，否则拒绝覆盖已有文件 |
 | `komactl gen-types` | 离线 | 确定性输出供 `koma-types`（`types/koma.lua`）使用的 `LuaCATS` 存根 |
-| `komactl inventory` | IPC（`admin.sock`） | 导出显示器、工作区、`Epoch` 计数、Deck 活跃窗与 Stash 列表（`scene.inventory`） |
+| `komactl inventory` | IPC（`admin.sock`） | 导出显示器、工作区、`Epoch` 计数、Deck 活跃窗与 Stash 列表（`scene.inventory`）；恰好一个工作区带 `"focused": true` |
+| `komactl win move-to-workspace <ws_id\|name> [--follow]` | IPC（`admin.sock`） | 把当前聚焦工作区的活跃窗口移动到已存在的工作区（`win.move_to_workspace`）；加 `--follow` 会切换到目标工作区，否则保持源工作区聚焦 |
 | `komactl token mint [label]` | IPC（`admin.sock`） | 签发受限 `CapabilityToken`（默认 `ttl_secs = 28800`、`can_create_headless = true`、`max_owned_workspaces = 4`） |
 | `komactl capture [ws_id] [out.rgba]` | IPC（`admin.sock`） | 通过 `SCM_RIGHTS` 零拷贝密封 `memfd` 抓取带 `grid_225` 叠加层的画面（默认 `ws_01`） |
 | `komactl sandbox <subcmd>` | 容器 + IPC | 使用 `bwrap` 或无根 `podman` 在隔离 `Headless` 工作区中运行受限 GUI 容器 |
@@ -36,6 +37,12 @@ lua/macros/example.lua
 `init.lua` 只是一个薄路由，`lua/keybinds.lua` 则把完整默认键位展开为 `koma.bind(...)` 调用，因此生成文件与内置回退键位表不会漂移。每个生成文件开头都带有机器可读标记 `-- koma-config-template: <version>`。
 
 已有文件不会被覆盖：`komactl init` 会列出冲突路径并停止，只有传入 `--force` 才会替换。编辑后请运行 `komactl validate` 与 `komactl reload`。`komactl config-status` 会将磁盘上的标记与随包模板比较，并报告 `template.installed_version`、`template.shipped_version`、`template.outdated` 与 `template.missing_files`。
+
+为区分版本比较无法覆盖的情形，`template` 还提供两个字段：`template.init_lua` 是实际被检查的路径（依次解析 `KOMA_CONFIG`、`$XDG_CONFIG_HOME/koma/init.lua`、`$HOME/.config/koma/init.lua`），`template.present` 表示该文件是否存在。手写且没有标记的 `init.lua` 会报告 `installed_version: null` 与 `outdated: false`，不会被误判为过期模板；而被删掉部分文件的骨架会出现在 `missing_files` 中。
+
+## `komactl config-status` 报告的实际输入参数
+
+同一份报告内嵌合成器的 `config.status`，其中的 `input.pointer` 与 `input.touchpad` 块列出 Koma 真正应用的取值：`accel_speed`、`accel_profile`、`natural_scroll`、`scroll_factor`、`follow_mouse`，触控板另有 `tap_to_click` 与 `disable_while_typing`。`null` 表示该项从未写入 `init.lua`，此时生效的是 libinput 内置默认值；`accel_profile` 只可能是 `"adaptive"`（默认曲线）或 `"flat"`（完全关闭加速）。当相同物理位移下指针移动距离与其他合成器不同，请先比较 `accel_speed` 与 `accel_profile`——未设置 profile 通常就能解释大部分差异。
 
 ## `komactl sandbox` 容器级 Wayland 隔离
 
