@@ -501,15 +501,16 @@ In addition to Agent capture/input RPCs on `koma-agent.sock`, `koma-admin.sock` 
 | **`sandbox.revoke_wayland_jail`** | `{ "ws_id": "ws_02" }`                                                           | Unlinks the jailed Wayland socket and removes its `calloop` listener when the container exits (`komactl sandbox run` RAII drop guard).                                                                                                             |
 | **`config.validate`**             | `{ "path": null }`                                                               | Evaluates `~/.config/koma/init.lua` inside an isolated shadow `PhodopusSandbox` + compiles regex rules without mutating compositor state.                                                                                                          |
 | **`config.reload`**               | `{ "path": null }`                                                               | Atomically swaps declarative config, keybinds, gestures, and rules if shadow validation succeeds.                                                                                                                                                  |
-| **`config.status`**               | `{}`                                                                             | Read-only. Returns `{ generation, reload_failures, active_path, last_error, deferred_vm_pending, locked, lock_phase, input }`. The only method the session lock gate still allows while `Locked` / `Abandoned`.                                    |
+| **`config.status`**               | `{}`                                                                             | Read-only. Returns `{ generation, reload_failures, active_path, last_error, deferred_vm_pending, locked, lock_phase, input, frame_perf }`. The only method the session lock gate still allows while `Locked` / `Abandoned`.                       |
 
 ### 7.1 `config.status` payload and `komactl config-status`
 
-`config.status` reports the live configuration and the **effective** `libinput` knobs, not the raw Lua table, so a value that was never written is visible as `null` instead of being guessed:
+`config.status` reports the live configuration, effective `libinput` knobs, and compositor frame-time telemetry:
 
 - **`input.pointer`**: `accel_speed`, `accel_profile` (`"adaptive"` | `"flat"` | `null`), `natural_scroll`, `scroll_factor`, `follow_mouse`. `accel_speed: null` and `accel_profile: null` mean the key was never written, so `libinput`'s built-in default applies; an unset profile keeps the adaptive curve while `"flat"` removes acceleration entirely.
 - **`input.keyboard`**: `layout`, `variant`, `model`, `options`, `repeat_delay_ms`, `repeat_rate_hz`. `null` means the key was never configured, so the XKB/libinput default applies; `options` is the raw XKB option string (the same names Hyprland accepts in `kb_options`), so a `caps:escape` remap is verifiable without reading the config.
 - **`input.touchpad`**: `natural_scroll`, `tap_to_click` (from `touchpad.tap`), `disable_while_typing` (from `touchpad.dwt`), `scroll_factor`. Same `null` semantics; touchpad acceleration itself is not reported.
+- **`frame_perf`**: `rendered_frames`, `skipped_frames`, `avg_us`, `max_us`, `last_us`, `p50_bucket`, `p95_bucket`, and `buckets` (`lt_1ms`, `ms_1_2`, `ms_2_4`, `ms_4_8`, `ms_8_16`, `ge_16ms`). Tracks zero-allocation frame render times across DRM/TTY and Winit backends for performance debugging.
 
 `komactl config-status` wraps that payload as `compositor` and adds a **`template`** block that it derives from disk itself — these fields are **not** part of the RPC:
 

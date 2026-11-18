@@ -61,6 +61,10 @@ lua/macros/example.lua
 | `compose:caps` | Caps Lock を Compose キーにする |
 | `grp:alt_shift_toggle` | Alt + Shift でキーボードレイアウトグループを切り替える |
 
+### `config.status` のフレーム時間ヒストグラム（`frame_perf`）
+
+`config.status` にはヒープ確保なしの描画時間テレメトリ `frame_perf`（`rendered_frames`、`skipped_frames`、`avg_us`、`max_us`、`last_us`、`p50_bucket`、`p95_bucket`、および `lt_1ms`〜`ge_16ms` バケット）も含まれ、1,000 フレームごとに `tracing::debug!` サマリーも出力されます。
+
 ## 設定診断（`komactl doctor` と `komactl keys`）
 
 どちらも `komactl validate` と同じ隔離シャドウ VM 評価を使うため、オフラインで動作しシートを必要としません。`komactl doctor` はチェックを `config`、`template`、`binds`、`monitors`、`workspaces`、`rules`、`environment` に分類し、各行に重大度を付けます：`ok`（実行して問題なし）、`warn`（読み込めるが意図と異なる可能性）、`error`（次回リロードで拒否される）、`skip`（DRM や稼働中コンポジタがない等、ここでは実行不可）。

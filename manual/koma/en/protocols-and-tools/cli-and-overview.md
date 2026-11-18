@@ -61,6 +61,10 @@ The same `input` object now carries `input.keyboard`: `layout`, `variant`, `mode
 | `compose:caps` | Caps Lock becomes the Compose key |
 | `grp:alt_shift_toggle` | Alt + Shift switches the keyboard layout group |
 
+### Frame-Time Histogram in `config.status` (`frame_perf`)
+
+`config.status` also exposes `frame_perf` with zero-allocation render telemetry (`rendered_frames`, `skipped_frames`, `avg_us`, `max_us`, `last_us`, `p50_bucket`, `p95_bucket`, and fixed buckets `lt_1ms` through `ge_16ms`), alongside periodic `tracing::debug!` summaries every 1,000 rendered frames.
+
 ## Configuration Diagnostics (`komactl doctor` & `komactl keys`)
 
 Both commands reuse the same jailed shadow-VM evaluation as `komactl validate`, so they work offline and never need a seat. `komactl doctor` groups its checks into `config`, `template`, `binds`, `monitors`, `workspaces`, `rules`, and `environment`, and every row carries a severity: `ok` (the check ran and found nothing), `warn` (loads fine, probably not what was intended), `error` (would be rejected on the next reload), or `skip` (cannot run here, such as no DRM or no live compositor).

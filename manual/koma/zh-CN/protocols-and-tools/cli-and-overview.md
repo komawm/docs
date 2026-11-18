@@ -61,6 +61,10 @@ lua/macros/example.lua
 | `compose:caps` | Caps Lock 作为 Compose 键 |
 | `grp:alt_shift_toggle` | Alt + Shift 切换键盘布局组 |
 
+### `config.status` 中的帧时间直方图（`frame_perf`）
+
+`config.status` 还会返回无堆分配的渲染帧耗时统计 `frame_perf`（包含 `rendered_frames`、`skipped_frames`、`avg_us`、`max_us`、`last_us`、`p50_bucket`、`p95_bucket` 以及 `lt_1ms` 至 `ge_16ms` 固定分桶），并在每渲染 1,000 帧时输出一次 `tracing::debug!` 汇总日志用于性能调试。
+
 ## 配置诊断（`komactl doctor` 与 `komactl keys`）
 
 两个命令都复用 `komactl validate` 的隔离影子虚拟机求值，因此可离线运行，无需 seat。`komactl doctor` 将检查分为 `config`、`template`、`binds`、`monitors`、`workspaces`、`rules`、`environment` 七组，每行带有严重级别：`ok`（已运行且未发现问题）、`warn`（可以加载，但很可能不是本意）、`error`（下次重载会被拒绝）、`skip`（当前环境无法运行，例如没有 DRM 或没有运行中的合成器）。

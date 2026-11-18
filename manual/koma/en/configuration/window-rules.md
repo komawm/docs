@@ -20,7 +20,7 @@ Koma matches Wayland and XWayland windows with `koma.rule.window({...})` and `wl
 | `suppress_events` | Live surface | Ignores client state requests such as `{ "maximize" }` |
 | `block_out_from` | Privacy / capture | `"agent_capture"` \| `"screencast"` \| `"screencopy"` \| `"all"` |
 
-Supported `anchor` values for `default_floating_pos` are `"top-left"`, `"top"`, `"top-right"`, `"left"`, `"center"`, `"right"`, `"bottom-left"`, `"bottom"`, and `"bottom-right"`.
+Supported `anchor` values for `default_floating_pos` are `"top-left"`, `"top"`, `"top-right"`, `"left"`, `"center"`, `"right"`, `"bottom-left"`, `"bottom"`, and `"bottom-right"`. The window's corresponding edge or center is aligned to the resolved anchor point `(anchor_origin + (x, y))` within the work area.
 
 `initial.open_mode = "fullscreen"` and `"maximized"` are distinct states: fullscreen covers the whole monitor including gaps (and suppresses `Top`/`Overlay` surfaces while active), while maximized fills the work area minus gaps and exclusive zones so panels stay visible. They are mutually exclusive.
 
