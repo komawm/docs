@@ -20,7 +20,7 @@ Koma は `~/.config/koma/init.lua` の `koma.rule.window({...})` で Wayland / X
 | `suppress_events` | ライブサーフェス | クライアントからの状態要求を無視（例: `{ "maximize" }`） |
 | `block_out_from` | プライバシー保護 | `"agent_capture"` \| `"screencast"` \| `"screencopy"` \| `"all"` |
 
-`default_floating_pos.anchor` には `"top-left"`, `"top"`, `"top-right"`, `"left"`, `"center"`, `"right"`, `"bottom-left"`, `"bottom"`, `"bottom-right"` を指定できます。
+`default_floating_pos.anchor` には `"top-left"`, `"top"`, `"top-right"`, `"left"`, `"center"`, `"right"`, `"bottom-left"`, `"bottom"`, `"bottom-right"` を指定できます。ウィンドウの対応する辺または中心が、作業領域内のアンカー点 `(anchor_origin + (x, y))` に揃えられます。
 
 `initial.open_mode = "fullscreen"` と `"maximized"` は別々の状態です。フルスクリーンはギャップを含むモニター全体を覆い（有効期間中は `Top`/`Overlay` サーフェスを抑制）、最大化は排他ゾーンを除く作業領域からギャップを引いた範囲を埋めるためパネルは表示されたままになります。両者は相互排他です。
 

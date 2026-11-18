@@ -20,7 +20,7 @@ Koma 在 `~/.config/koma/init.lua` 中使用 `koma.rule.window({...})` 匹配 Wa
 | `suppress_events` | 运行时表面 | 忽略客户端请求（例如 `{ "maximize" }`） |
 | `block_out_from` | 隐私 / 截屏隔离 | `"agent_capture"` \| `"screencast"` \| `"screencopy"` \| `"all"` |
 
-`default_floating_pos.anchor` 支持 `"top-left"`、`"top"`、`"top-right"`、`"left"`、`"center"`、`"right"`、`"bottom-left"`、`"bottom"` 与 `"bottom-right"`。
+`default_floating_pos.anchor` 支持 `"top-left"`、`"top"`、`"top-right"`、`"left"`、`"center"`、`"right"`、`"bottom-left"`、`"bottom"` 与 `"bottom-right"`。窗口对应的边缘或中心会对齐到工作区内的目标锚点 `(anchor_origin + (x, y))`。
 
 `initial.open_mode = "fullscreen"` 与 `"maximized"` 是两种不同状态：全屏覆盖包含间隙的整个显示器（激活期间抑制 `Top`/`Overlay` 表面），最大化则填充排除区域之外再减去间隙的工作区，因此面板保持可见。两者互斥。
 
