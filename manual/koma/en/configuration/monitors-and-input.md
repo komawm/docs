@@ -42,7 +42,7 @@ Set `off = true` in a `koma.monitor({...})` block to disable a specific output.
 
 ## Keyboard, Pointer, Touchpad & Tablet (`koma.input`)
 
-Keyboard repeat defaults are `repeat_delay = 220` ms and `repeat_rate = 35` Hz (`repeat_delay_ms` / `repeat_rate_hz` are accepted as aliases). Setting `mod_key = "auto"` (the default) uses `Super` on `--tty` and `Alt` when running nested under `--winit`; explicit values are `"Super"`, `"Alt"`, `"Ctrl"`, `"Shift"`, and `"Mod5"`.
+Keyboard repeat defaults are `repeat_delay = 600` ms and `repeat_rate = 25` Hz (`repeat_delay_ms` / `repeat_rate_hz` are accepted as aliases), the same cadence hold-to-repeat keybinds use. Setting `mod_key = "auto"` (the default) uses `Super` on `--tty` and `Alt` when running nested under `--winit`; explicit values are `"Super"`, `"Alt"`, `"Ctrl"`, `"Shift"`, and `"Mod5"`.
 
 ```lua
 koma.input({
@@ -88,6 +88,8 @@ koma.input({
 ```
 
 On clickpads without separate physical mouse buttons (such as Apple Force Touch trackpads), Koma defaults `click_method` to `"clickfinger"` and `disable_while_typing` to `true` unless overridden above or per device.
+
+`keyboard.options` takes any XKB option name — the same names Hyprland accepts in `kb_options`, including `caps:escape`, `caps:ctrl_modifier`, `ctrl:nocaps`, `altwin:swap_lalt_lwin`, `compose:caps`, and `grp:alt_shift_toggle`. `komactl config-status` reports the applied string under `input.keyboard.options`, so a remap can be verified without reopening the config.
 
 `pointer.follow_mouse` maps Hyprland's `input:follow_mouse` values: `"off"` (`0`) focuses only on click, `"normal"` (`1`) focuses and raises the hovered window inside its workspace, and `"focus_only"` (`2`) gives the hovered window keyboard focus without raising it. The default is `"normal"`, and unknown values fall back to `"normal"`. Pointer motion over gaps or layer-shell surfaces never changes focus.
 

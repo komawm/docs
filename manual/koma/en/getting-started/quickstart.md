@@ -50,6 +50,7 @@ Koma parses CLI options before opening any display, seat, or DRM device:
 | `Mod + BracketLeft` / `BracketRight` | `scrolling.consume_or_expel_window_left/right()` | Consume/expel left or right |
 | `Mod + S` / `Mod + Shift + S` | `scratchpad.toggle()` / `move_window()` | Toggle or move window to scratchpad |
 | `Mod + Tab` | `overview.toggle()` | Toggle `koma-overview` spatial workspace switcher |
+| `Mod + Shift + Slash` | `overlay.keybinds_toggle()` | Compositor-rendered keybind overview; `Escape`, the same chord, or a click dismisses it |
 | `Mod + MouseLeft` / `MouseRight` | `window.drag_move()` / `drag_resize()` | Drag-move or drag-resize window |
 | `Mod + WheelScrollDown / Up` | `workspace.focus_next()` / `focus_prev()` | Cycle workspaces (`150 ms` cooldown) |
 | `Mod + WheelScrollLeft / Right` | `deck.cycle_prev()` / `cycle_next()` | Cycle Deck/Stash stack (`150 ms` cooldown) |
@@ -59,7 +60,7 @@ Koma parses CLI options before opening any display, seat, or DRM device:
 
 ## Fullscreen vs. Maximize (`Mod + F` / `Mod + M`)
 
-- **Fullscreen (`Mod + F`, `koma.act.window.fullscreen_toggle()`)** covers the whole monitor, gaps included. While it is active, `Top` and `Overlay` layer surfaces (status bars, launchers) are not composited; they stay mapped and appear again immediately when fullscreen ends. Other windows on the workspace are hidden.
+- **Fullscreen (`Mod + F`, `koma.act.window.fullscreen_toggle()`)** covers the whole monitor, gaps included. While it is active, `Top` and `Overlay` layer surfaces (status bars, launchers) are not composited; they stay mapped and appear again immediately when fullscreen ends. Other windows on the workspace are hidden. The fullscreen window itself paints no border, focus ring or shadow; maximize keeps them, because neighbours and the bar remain.
 - **Maximize (`Mod + M`, `koma.act.window.maximize_toggle()`)** fills the work area minus gaps and exclusive zones, so the bar stays visible.
 - The two states are mutually exclusive: entering one leaves the other. `Mod + Shift + M` is the separate Scrolling action `koma.act.scrolling.maximize_column()` and does not toggle window maximize.
 

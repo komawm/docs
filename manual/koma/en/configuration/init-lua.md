@@ -119,6 +119,27 @@ The built-in defaults are expressed with the same action surface, including `kom
 | `koma.on(event, fn)` | Registers a Lua callback on compositor lifecycle events |
 | `koma.macro.define(spec)` | Registers a parameterized automation macro exposed to `koma mcp` |
 
+### Keybind Overview Overlay
+
+`Mod + Shift + Slash` dispatches `koma.act.overlay.keybinds_toggle()`. Koma draws the overview itself, so it works on a bare session with no launcher installed. `Escape`, the same chord, or a click dismisses it; while it is open it owns the keyboard and pointer buttons, and it refuses to open in a locked or abandoned session (a config reload closes it).
+
+The panel is grouped by catalogue category and lists the effective map, so chords you overrode with `koma.bind` and defaults you removed with `koma.unbind` are already reflected. Its rows come from the same merge that backs `komactl keys`, so the overlay and the CLI cannot disagree; the CLI is also where each row's source (`builtin` or `config:<file>`) and Lua expression are printed. On a narrow output the panel wraps into columns, and the last column ends with an exact `+N more` count instead of dropping bindings silently.
+
+### Hold-to-Repeat Binds
+
+Movement, resize, preset and cycling actions keep firing while the chord is held, at the same `repeat_delay` / `repeat_rate` as text repeat (`600` ms, then `25` Hz by default). The class comes from the action, not from the chord: directional focus, window move/swap, directional resize, Dwindle split-ratio drags, scrolling column/preset cycling, workspace next/prev, deck cycling, and monitor focus/move/swap repeat. Spawning, closing, quitting, reloading, scratchpad, consume/expel, and every toggle dispatch exactly once.
+
+Override the class per bind:
+
+```lua
+koma.bind("Mod + D", koma.act.focus.left())                                  -- repeats (focus direction)
+koma.bind("Mod + D", koma.act.window.close(), { repeat_while_held = false }) -- never repeats
+```
+
+`repeat` is a reserved Lua word, so the bare option is `repeat_while_held`; `["repeat"] = false` also works and is the field name used by JSON/IPC. An explicit value wins over the action's class in either direction. A pending repeat is cancelled by releasing the key, changing modifiers, a pointer-driven focus change, an external workspace switch, a compositor move/resize or frame-edge grab, a client drag, the session lock, or a config reload.
+
+`pass_through` binds never repeat in the compositor: the focused client repeats the forwarded key from the same `wl_keyboard.repeat_info`, so exactly one layer dispatches every held chord. `komactl keys` marks repeating rows with `[repeat]`, and `komactl keys --json` carries `"repeat": bool`.
+
 ## Environment Variables (`koma.env`)
 
 `koma.env(key, val)` records a variable that Koma applies to **every child process it spawns**: keybind `spawn`/`exec` actions, `ctx:spawn(...)` inside event handlers, and macro runs. It does not change the compositor's own environment, which is fixed when the process starts.

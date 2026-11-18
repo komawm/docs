@@ -42,7 +42,7 @@ koma.monitor({
 
 ## 键盘、鼠标、触控板与数位板（`koma.input`）
 
-键盘重复率默认值为 `repeat_delay = 220` ms 与 `repeat_rate = 35` Hz（也兼容 `repeat_delay_ms` / `repeat_rate_hz` 别名）。`mod_key = "auto"`（默认）在 `--tty` 下映射为 `Super`，在 `--winit` 嵌套窗口下自动切换为 `Alt`；也可显式指定 `"Super"`、`"Alt"`、`"Ctrl"`、`"Shift"` 或 `"Mod5"`。
+键盘重复率默认值为 `repeat_delay = 600` ms 与 `repeat_rate = 25` Hz（也兼容 `repeat_delay_ms` / `repeat_rate_hz` 别名），按住重复的快捷键使用相同节奏。`mod_key = "auto"`（默认）在 `--tty` 下映射为 `Super`，在 `--winit` 嵌套窗口下自动切换为 `Alt`；也可显式指定 `"Super"`、`"Alt"`、`"Ctrl"`、`"Shift"` 或 `"Mod5"`。
 
 ```lua
 koma.input({
@@ -88,6 +88,8 @@ koma.input({
 ```
 
 对于无独立物理按键的 Clickpad / Force Touch 触控板，若未在全局或单设备配置中显式指定，Koma 默认启用 `click_method = "clickfinger"` 与 `disable_while_typing = true`。
+
+`keyboard.options` 接受任意 XKB 选项名，与 Hyprland `kb_options` 接受的名称一致，例如 `caps:escape`、`caps:ctrl_modifier`、`ctrl:nocaps`、`altwin:swap_lalt_lwin`、`compose:caps`、`grp:alt_shift_toggle`。实际应用的字符串会出现在 `komactl config-status` 的 `input.keyboard.options` 中，无需重开配置文件即可验证改键是否生效。
 
 `pointer.follow_mouse` 对应 Hyprland 的 `input:follow_mouse` 取值：`"off"`（`0`）仅在点击时聚焦，`"normal"`（`1`，默认）聚焦光标下的窗口并在其工作区内提升到最前，`"focus_only"`（`2`）只赋予键盘焦点而不提升窗口。未知值会回退为 `"normal"`。光标经过间隙或 layer-shell 表面时不会改变焦点。
 

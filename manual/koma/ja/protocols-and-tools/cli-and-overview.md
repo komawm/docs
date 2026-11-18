@@ -9,8 +9,10 @@
 | コマンド | 動作モード | 説明 |
 | :--- | :--- | :--- |
 | `komactl validate [path/to/init.lua]` | オフライン | 隔離された Lua サンドボックスで `init.lua` を評価し、ルール正規表現・ジェスチャ検証とリソース数を出力 |
+| `komactl doctor [path/to/init.lua] [--json] [--strict]` | オフライン | 破壊的でない設定チェックを領域別に実行し、`ok` / `warn` / `error` / `skip` を報告。`error` は終了コードを変えない |
+| `komactl keys [path/to/init.lua] [--json] [--grep <pattern>]` | オフライン（接続時は稼働状態を読み取り専用で併記） | 実効キーマップ（組み込みカタログと `init.lua` のマージ、ポインタバインド、ジェスチャ）を一覧。リピートする行には `[repeat]` |
 | `komactl reload [path/to/init.lua]` | IPC（`admin.sock`） | `config.reload` を送信し、実行中コンポジタの設定をアトミックに切り替え |
-| `komactl config-status` | IPC（`admin.sock`）+ オフライン | 有効な設定パス、リロード世代、直近のエラー（`config.status`）、実際に適用中の `input.pointer` / `input.touchpad` 設定に加え、生成テンプレートの `template.{init_lua,present,installed_version,shipped_version,outdated,missing_files}` を表示 |
+| `komactl config-status` | IPC（`admin.sock`）+ オフライン | 有効な設定パス、リロード世代、直近のエラー（`config.status`）、実際に適用中の `input.keyboard` / `input.pointer` / `input.touchpad` 設定に加え、生成テンプレートの `template.{init_lua,present,installed_version,shipped_version,outdated,missing_files}` を表示 |
 | `komactl init [dir] [--force]` | オフライン | `init.lua`、`lua/{input,workspaces,appearance,window_rules,keybinds}.lua`、`lua/macros/example.lua` を生成。既存ファイルは `--force` がない限り上書きしない |
 | `komactl gen-types` | オフライン | `koma-types`（`types/koma.lua`）用の決定論的な `LuaCATS` スタブを出力 |
 | `komactl inventory` | IPC（`admin.sock`） | 稼働中のモニター、ワークスペース、`Epoch` カウンタ、Deck ウィンドウ、Stash スロットを出力（`scene.inventory`）。ちょうど 1 つのワークスペースに `"focused": true` が付く |
@@ -43,6 +45,29 @@ lua/macros/example.lua
 ## `komactl config-status` が示す実効入力設定
 
 同じレポートにはコンポジタの `config.status` が含まれ、`input.pointer` と `input.touchpad` ブロックに Koma が実際に適用している値（`accel_speed`、`accel_profile`、`natural_scroll`、`scroll_factor`、`follow_mouse`、タッチパッドでは `tap_to_click` と `disable_while_typing`）が並びます。`null` はそのキーが `init.lua` に一度も書かれていないことを意味し、libinput の組み込み既定値が適用されます。`accel_profile` は `"adaptive"`（既定の曲線）か `"flat"`（加速なし）のいずれかです。同じ物理移動量で他コンポジタとカーソル移動距離が違う場合は、まず `accel_speed` と `accel_profile` を比較してください。プロファイル未設定が差分のほとんどを説明します。
+
+### `config.status` の XKB キーボードマップ
+
+同じ `input` オブジェクトに `input.keyboard` が加わりました：`layout`、`variant`、`model`、`options`、`repeat_delay_ms`、`repeat_rate_hz`。`null` は「未設定」を意味し、XKB／libinput の既定値が適用されます。`options` は生の XKB オプション文字列なので、`init.lua` を開き直さなくてもリマップを確認できます。これらの値はテキストリピートと長押しリピートの両方のタイミングを駆動します。
+
+`options` は XKB の名前を使い、Hyprland の `kb_options` が受け付けるものと同一です。`setxkbmap -option` が受け付ける指定なら何でも動作します：
+
+| オプション | 効果 |
+| :--- | :--- |
+| `caps:escape` | Caps Lock を Escape として扱う |
+| `caps:ctrl_modifier` | Caps Lock を追加の Ctrl にする |
+| `ctrl:nocaps` | Caps Lock を Ctrl に割り当てる |
+| `altwin:swap_lalt_lwin` | 左 Alt と左 Super を入れ替える |
+| `compose:caps` | Caps Lock を Compose キーにする |
+| `grp:alt_shift_toggle` | Alt + Shift でキーボードレイアウトグループを切り替える |
+
+## 設定診断（`komactl doctor` と `komactl keys`）
+
+どちらも `komactl validate` と同じ隔離シャドウ VM 評価を使うため、オフラインで動作しシートを必要としません。`komactl doctor` はチェックを `config`、`template`、`binds`、`monitors`、`workspaces`、`rules`、`environment` に分類し、各行に重大度を付けます：`ok`（実行して問題なし）、`warn`（読み込めるが意図と異なる可能性）、`error`（次回リロードで拒否される）、`skip`（DRM や稼働中コンポジタがない等、ここでは実行不可）。
+
+`error` は終了コードを変えません。コンポジタは最後に有効だった設定で動き続けるため、設定エラーでセッションを壊してはいけないからです。`--strict` は warn か error が 1 つでもあれば `1` で終了し、`2` は設定を全く読めない場合、使い方の誤り、内部障害のために予約されています。`--json` は件数と全チェック行を 1 つのドキュメントで出力します。
+
+`komactl keys` は実効マップを出力します。組み込みカタログに `input.inherit_default_binds`、`koma.unbind`、キーの上書きをマージし、ポインタバインドとジェスチャは別セクションに並びます。各行にはキー、アクション、Lua 式、ソース（`builtin` または `config:<file>`）、説明が付き、上書き時は組み込みの説明が括弧付きで残ります。`--grep <pattern>` は大文字小文字を区別せず絞り込み、`--json` は `{catalogue, keyboard, pointer, gestures, total, overridden_builtins}` を出力します。隠すものはありません：カタログ項目に戻せないバインドは生のアクションディスクリプタ付きで表示されます。既定ではオフラインで、稼働中の `koma-admin.sock` に到達できる場合はヘッダーと JSON の `live` オブジェクトに実行中の世代、有効な設定パス、ロック状態が読み取り専用でマージされます。
 
 ## `komactl sandbox` によるコンテナ隔離
 

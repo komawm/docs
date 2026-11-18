@@ -50,6 +50,7 @@ Koma 会在打开任何显示设备、座席或 DRM 节点之前先完成命令�
 | `Mod + BracketLeft` / `BracketRight` | `scrolling.consume_or_expel_window_left/right()` | 向左或向右并入/拆出列 |
 | `Mod + S` / `Mod + Shift + S` | `scratchpad.toggle()` / `move_window()` | 呼出/隐藏暂存区或将窗口移入暂存区 |
 | `Mod + Tab` | `overview.toggle()` | 打开/关闭 `koma-overview` 空间工作区切换器 |
+| `Mod + Shift + Slash` | `overlay.keybinds_toggle()` | 由合成器自身绘制的快捷键总览；按 `Escape`、同一组合键或单击即可关闭 |
 | `Mod + MouseLeft` / `MouseRight` | `window.drag_move()` / `drag_resize()` | 鼠标拖拽移动或缩放窗口（无修饰键拖动边框/角落同样可缩放） |
 | `Mod + WheelScrollDown / Up` | `workspace.focus_next()` / `focus_prev()` | 滚轮切换工作区（`150 ms` 冷却） |
 | `Mod + WheelScrollLeft / Right` | `deck.cycle_prev()` / `cycle_next()` | 滚轮在 Deck/Stash 间轮换窗口（`150 ms` 冷却） |
@@ -59,7 +60,7 @@ Koma 会在打开任何显示设备、座席或 DRM 节点之前先完成命令�
 
 ## 全屏与最大化（`Mod + F` / `Mod + M`）
 
-- **全屏（`Mod + F`，`koma.act.window.fullscreen_toggle()`）** 覆盖整个显示器，包含间隙。激活期间 `Top` / `Overlay` 层（状态栏、启动器）不再参与合成，但仍保持映射状态，退出全屏后立即恢复显示。工作区内的其他窗口会被隐藏。
+- **全屏（`Mod + F`，`koma.act.window.fullscreen_toggle()`）** 覆盖整个显示器，包含间隙。激活期间 `Top` / `Overlay` 层（状态栏、启动器）不再参与合成，但仍保持映射状态，退出全屏后立即恢复显示。工作区内的其他窗口会被隐藏。全屏窗口自身不绘制边框、焦点环与阴影；最大化仍保留这些装饰，因为相邻窗口与状态栏依然存在。
 - **最大化（`Mod + M`，`koma.act.window.maximize_toggle()`）** 填充排除区域之外、再减去间隙的工作区范围，因此状态栏保持可见。
 - 两种状态互斥，进入一种会清除另一种。`Mod + Shift + M` 是 Scrolling 的 `koma.act.scrolling.maximize_column()`，与窗口最大化无关。
 
