@@ -31,7 +31,7 @@ Koma 将 [`ext-workspace-v1`](https://wayland.app/protocols/ext-workspace-v1)（
 | `capabilities` | 仅 `activate` |
 | `state` | 工作区处于显示状态（已分配到输出、正在打开的 `special:` 浮层，或为 `active_ws_id`）时为 `active`；普通非活动工作区不带任何状态位；只有完全没有屏幕表示的工作区（无头／`agent:`）才为 `hidden` |
 
-属性事件仅发送增量，每个批次以 `done` 结束，因此请缓存已收到的值，不要凭单个事件重建状态。`workspace.activate` 走与 `Mod + 1..0` 相同的切换路径，锁屏期间会被忽略。
+属性事件仅发送增量，每个批次以 `done` 结束，因此请缓存已收到的值，不要凭单个事件重建状态。`workspace.activate` 是一个请求：该 manager 发送 `commit` 时才生效。一次 `commit` 之前的多次 activate 会作为一个批次应用，只有最后一个请求生效，因此中间工作区不会闪现，也不会触发 `workspace.focused`。切换本身走与 `Mod + 1..0` 相同的路径；manager 发送 `stop` 或断开连接时，挂起的请求会被丢弃。锁屏期间的 `commit` 会被忽略。
 
 ### Waybar 的 `ext/workspaces`
 

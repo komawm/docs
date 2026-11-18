@@ -31,7 +31,7 @@ Koma advertises [`ext-workspace-v1`](https://wayland.app/protocols/ext-workspace
 | `capabilities` | `activate` only |
 | `state` | `active` while the workspace is displayed (assigned to an output, the open `special:` overlay, or `active_ws_id`); no state bits for an ordinary inactive workspace; `hidden` only for workspaces that have no on-screen representation at all (headless/`agent:` workspaces) |
 
-Property events are delta-only and every batch ends with `done`, so cache what you received instead of re-deriving state from a single event. `workspace.activate` runs through the same switch path as `Mod + 1..0`, and it is ignored while the session is locked.
+Property events are delta-only and every batch ends with `done`, so cache what you received instead of re-deriving state from a single event. `workspace.activate` is a request: it takes effect when that manager sends `commit`, and a series of activations before one `commit` is applied as a single batch with the last request winning, so an intermediate workspace never flashes or fires `workspace.focused`. The switch itself runs through the same path as `Mod + 1..0`, and a pending request is dropped when the manager sends `stop` or disconnects. A commit is ignored while the session is locked.
 
 ### Waybar `ext/workspaces`
 
