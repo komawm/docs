@@ -242,7 +242,15 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
   Only an **existing** workspace is accepted; an unknown id or name returns `ErrNotFound` instead of creating a workspace, because a status-bar click must not have that side effect (the keybind path keeps its create-on-demand behaviour). Response: `{ "focused": "2", "active_ws_id": "ws_02" }`.
 
-  Shell helper: `komactl ws focus <ws_id|name>`. For a native Waybar module, `ext-workspace-v1` is still the long-term answer; this method covers scripted and per-module bar wiring until then.
+  Shell helper: `komactl ws focus <ws_id|name>`. Status bars normally do not need this RPC: `ext-workspace-v1` is implemented (§5.7) and lets a native Waybar `ext/workspaces` module activate a workspace without any IPC wiring.
+
+- **`win.move_to_workspace`** (alias **`win.move`**, `koma-admin.sock` only): `{ "workspace": "2", "follow": false }` (or `{ "ws_id": "ws_02" }`) -> Moves the active window of the focused workspace into an existing target workspace. "Focused workspace" means the open `special:` overlay when one is visible, otherwise `active_ws_id`. The RPC mirrors the `WindowMoveToWorkspace` action for status bars, whose only other route (`lua.exec_tx`) is lease-gated; the session lock gate applies, so the call is rejected while the session is locked.
+
+  `"follow": true` matches [`Hyprland`](https://github.com/hyprwm/hyprland) `movetoworkspace`: the destination becomes the active workspace and the moved window takes keyboard focus. `"follow": false` (the default) matches `movetoworkspacesilent`: the source workspace keeps focus and the window lands without stealing it. Only **existing** workspaces are accepted (`ErrNotFound` instead of creating one), and a source without an active window is also `ErrNotFound` instead of inventing a move.
+
+  Response: `{ "win_id": "win_9a_g1", "from_ws_id": "ws_01", "to_ws_id": "ws_02", "followed": true, "moved": true, "active_ws_id": "ws_02" }`. `moved` reports the model result (`false` when source and destination are the same workspace) and `followed` is `follow && moved`.
+
+  Shell helper: `komactl win move-to-workspace <ws_id|name> [--follow]`.
 
 ### 5.3 Spatial Inventory, Window Stack & Damage Synchronization (`scene.*`, `win.*`)
 
@@ -258,6 +266,7 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
       {
         "ws_id": "ws_01",
         "name": "wps-thesis",
+        "focused": false,
         "mode": "headless",
         "frame_tier": "idle_heartbeat",
         "epoch": 4,
@@ -273,6 +282,8 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 }
 
 ```
+
+- **`focused` on every workspace entry**: exactly one entry carries `"focused": true`, the workspace whose id equals `active_ws_id`. A status bar can therefore render the focused workspace from a single `scene.inventory` call instead of reading the runtime file or diffing `workspace.focused` events; the invariant (exactly one `true`, never zero, never two) holds across output switches and `special:` overlay toggles.
 
 - **`scene.tree`**: `{ "ws_id": "ws_01", "win_id": "win_9a_g1", "include_popups": true }` -> Returns exact surface-local and workspace-global bounding boxes for the toplevel (matching [`ext-foreign-toplevel-list-v1`](https://wayland.app/protocols/ext-foreign-toplevel-list-v1) generation-safe IDs) and any open `xdg_popup` menus.
 
@@ -382,6 +393,34 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
 
 - **`macro.record_start` / `macro.record_stop`** (`koma-admin.sock` only): Captures `seat0` demonstrations on a target window, denoises pointer jitter into 9-anchor relative coordinates, and returns parameterized Lua 5.4 source ready to save under `~/.config/koma/lua/macros/`.
 
+### 5.7 Status-Bar Workspace Model (`ext-workspace-v1`)
+
+Status bars, docks and taskbars need a workspace list with per-workspace click targets. [`ext-workspace-v1`](https://wayland.app/protocols/ext-workspace-v1) (staging) is advertised as `ext_workspace_manager_v1` (version `1`) to **unrestricted clients only**; jailed and `wp_security_context_manager_v1` clients cannot bind it just as they cannot bind `zwlr_layer_shell_v1`. The implementation lives in `crates/koma/src/ext_workspace.rs`.
+
+**Object model.** Koma workspaces are global objects assigned to an output on demand, not a fixed per-output set, so the mapping is intentionally minimal:
+
+- Exactly **one** `ext_workspace_group_handle_v1` holds **every** output. `output_enter` / `output_leave` carry the client's own `wl_output` objects and are refreshed when a manager binds, when a `wl_output` is bound, and on every workspace state change, so a bar that binds outputs after the manager still converges.
+- Exactly **one** `ext_workspace_handle_v1` per live workspace. Properties: `id` = the Koma `WorkspaceId` (`"ws_01"`, not a numeric index), `name` = the workspace name (`"1"`, `"chat"`, `"special:magic"`), `coordinates` = a unique 1D index in strip order, `capabilities` = `activate`.
+
+**Coordinates.** Workspaces are ordered numerically by value first (so `2` sorts before `10` and before `chat`), then the remaining names lexicographically; `coordinates` is that position (`[0]`, `[1]`, …). Because the index is unique inside the single group, a bar can sort deterministically without disambiguating two workspaces at one coordinate.
+
+**State.** `active` means _currently displayed_: the workspace is assigned to an output, is the open `special:` overlay, or is `active_ws_id`. Every other workspace is `hidden`. The two bits are mutually exclusive and exhaustive — never both, never neither — which is why `ignore-hidden: true` yields exactly the visible strip. There is no per-output "visible" bit beyond this.
+
+**Events.** The group emits `capabilities`, `output_enter`, `output_leave`, `workspace_enter` and `workspace_leave`; each workspace emits `id`, `name`, `coordinates`, `state`, `capabilities` and `removed`; `done` closes every batch. Property events are **delta-only**: a batch carries `name` / `coordinates` / `state` only for handles whose value changed, so a bar must cache what it received and never re-derive state from a single event. New handles are announced through `workspace` + `workspace_enter`, removed ones through `workspace_leave` + `removed`.
+
+**Requests.** `workspace.activate` routes through the compositor's single workspace-switch path (`KomaState::focus_workspace`), the same one used by keybinds, `ws.focus` and followed window moves, so output mapping, geometry resync, idle inhibitors, foreign-toplevel updates and the transition animation all behave identically to `Mod + 1..0`. The request is ignored while the session is locked, so a bar cannot surface another workspace over the lock screen. `commit` has nothing to batch (requests apply as they arrive) and `stop` is answered with `finished`.
+
+**Documented subset.** Advertised capabilities are limited to what Koma can honour, and the protocol requires the compositor to ignore unadvertised requests rather than fail them:
+
+| Element                          | Status                                                                                                                 |
+| :------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
+| `urgent` state                   | Never set. Koma has no window-urgency notion yet, so no workspace can be urgent and `button.urgent` never fires.       |
+| `activate`                       | Supported, through `focus_workspace`; ignored while locked.                                                            |
+| `deactivate`, `assign`, `remove` | Not advertised, ignored if sent: Koma has no output reassignment and no bar-initiated workspace destruction.           |
+| `create_workspace`               | Not advertised (group capabilities are empty), ignored if sent: workspaces come from config, keybinds and `ws.create`. |
+
+A complete Waybar wiring is shown in the manual (`protocols-and-tools/wayland-protocols.md`); `id` being a door id rather than a strip number is the one property worth planning for, since `{id}` renders `ws_01` while `{name}` renders `1`.
+
 ## 6. Asynchronous Event Stream Specification (`events.subscribe`)
 
 Clients subscribe to push notifications over a dedicated or multiplexed socket connection using `events.subscribe`:
@@ -458,3 +497,24 @@ In addition to Agent capture/input RPCs on `koma-agent.sock`, `koma-admin.sock` 
 | **`sandbox.revoke_wayland_jail`** | `{ "ws_id": "ws_02" }`                                                           | Unlinks the jailed Wayland socket and removes its `calloop` listener when the container exits (`komactl sandbox run` RAII drop guard).                                                                                                             |
 | **`config.validate`**             | `{ "path": null }`                                                               | Evaluates `~/.config/koma/init.lua` inside an isolated shadow `PhodopusSandbox` + compiles regex rules without mutating compositor state.                                                                                                          |
 | **`config.reload`**               | `{ "path": null }`                                                               | Atomically swaps declarative config, keybinds, gestures, and rules if shadow validation succeeds.                                                                                                                                                  |
+| **`config.status`**               | `{}`                                                                             | Read-only. Returns `{ generation, reload_failures, active_path, last_error, deferred_vm_pending, locked, lock_phase, input }`. The only method the session lock gate still allows while `Locked` / `Abandoned`.                                    |
+
+### 7.1 `config.status` payload and `komactl config-status`
+
+`config.status` reports the live configuration and the **effective** `libinput` knobs, not the raw Lua table, so a value that was never written is visible as `null` instead of being guessed:
+
+- **`input.pointer`**: `accel_speed`, `accel_profile` (`"adaptive"` | `"flat"` | `null`), `natural_scroll`, `scroll_factor`, `follow_mouse`. `accel_speed: null` and `accel_profile: null` mean the key was never written, so `libinput`'s built-in default applies; an unset profile keeps the adaptive curve while `"flat"` removes acceleration entirely.
+- **`input.touchpad`**: `natural_scroll`, `tap_to_click` (from `touchpad.tap`), `disable_while_typing` (from `touchpad.dwt`), `scroll_factor`. Same `null` semantics; touchpad acceleration itself is not reported.
+
+`komactl config-status` wraps that payload as `compositor` and adds a **`template`** block that it derives from disk itself — these fields are **not** part of the RPC:
+
+| Field               | Meaning                                                                                                                                                                 |
+| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `init_lua`          | Absolute path resolved from `KOMA_CONFIG`, else `$XDG_CONFIG_HOME/koma/init.lua`, else `$HOME/.config/koma/init.lua`, else `/etc/xdg/koma/init.lua`.                    |
+| `present`           | Whether that file exists at all.                                                                                                                                        |
+| `installed_version` | Version parsed from the `-- koma-config-template: <version>` marker within the first ten lines, or `null` for an absent file or a hand-written config without a marker. |
+| `shipped_version`   | Template version compiled into this `komactl` build.                                                                                                                    |
+| `outdated`          | `true` when a marker was parsed and is older than `shipped_version`.                                                                                                    |
+| `missing_files`     | Rendered template paths absent below the config directory, so a half-deleted scaffold is visible.                                                                       |
+
+An outdated template also prints a one-line `komactl config-status:` warning on `stderr` pointing at `komactl init --force`; the report itself never rewrites anything.

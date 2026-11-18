@@ -6,10 +6,28 @@ Koma 在 `$XDG_RUNTIME_DIR/koma/<signature>/`（目录权限 `0700`）下提供�
 
 | 套接字 | 权限与鉴权方式 | 允许的操作范围 |
 | :--- | :--- | :--- |
-| **`koma-admin.sock`** | `0600`，同 UID 内核凭证校验（`SO_PEERCRED` / `LOCAL_PEERCRED` / `getpeereid`）；对沙箱受限 Wayland 客户端屏蔽 | `config.reload`、`config.status`、`auth.mint_token`、`sandbox.create_wayland_jail`、`sandbox.revoke_wayland_jail`、`scene.inventory`、`capture.frame`、人类接管（`ws.set_mode`） |
+| **`koma-admin.sock`** | `0600`，同 UID 内核凭证校验（`SO_PEERCRED` / `LOCAL_PEERCRED` / `getpeereid`）；对沙箱受限 Wayland 客户端屏蔽 | `config.reload`、`config.status`、`auth.mint_token`、`sandbox.create_wayland_jail`、`sandbox.revoke_wayland_jail`、`scene.inventory`、`capture.frame`、`ws.focus`、`win.move_to_workspace`、人类接管（`ws.set_mode`） |
 | **`koma-agent.sock`** | `0600`，首帧必须发送携带 `CapabilityToken` 的 `auth.authenticate` | 仅限令牌授权工作区内的 `ws.create`、`capture.frame`、`vseat.*`、`macro.exec` / `lua.exec_tx` |
 
 连接到 `koma-agent.sock` 的第 1 帧必须是通过 `komactl token mint`（或 `koma-admin.sock` 上的 `auth.mint_token`）签发的 `CapabilityToken` 认证请求；未认证请求或在智能体套接字上调用管理 RPC 会被立即拒绝。两条通道均采用 4 字节小端序长度前缀 + UTF-8 JSON 负载（单帧上限 `16 MiB`），并支持附带 `SCM_RIGHTS` 文件描述符。
+
+## 从状态栏切换工作区与移动窗口
+
+状态栏改变当前显示内容有三条途径，按推荐顺序排列：
+
+- **原生 Wayland（`ext-workspace-v1`）**：`waybar` 的 `ext/workspaces` 模块调用 `workspace.activate`，Koma 按与 `Mod + 1..0` 完全相同的路径切换。无需 IPC，也无需令牌；详见 [状态栏、Portal、输入法与应用兼容](/zh-CN/docs/protocols-and-tools/wayland-protocols/)。
+- **`ws.focus`**（`koma-admin.sock`）：脚本化接线使用 `{ "ws_id": "ws_02" }` 或 `{ "name": "2" }`。仅接受已存在的工作区（否则 `ErrNotFound`），锁屏期间调用会被拒绝。
+- **`win.move_to_workspace`**（别名 `win.move`，`koma-admin.sock`）：`{ "workspace": "2", "follow": false }` 会把当前聚焦工作区（若打开了 `special:` 浮层则为该浮层，否则为 `active_ws_id`）的活跃窗口移动到已存在的工作区。`"follow": true` 等价于 Hyprland 的 `movetoworkspace`（切到目标工作区并聚焦该窗口），`"follow": false` 等价于 `movetoworkspacesilent`（保持源工作区聚焦）。返回 `{ win_id, from_ws_id, to_ws_id, followed, moved, active_ws_id }`；目标未知或源工作区没有活跃窗口时返回 `ErrNotFound`，且绝不会顺带创建工作区。
+
+```bash
+# 静默：窗口移到工作区 3，当前工作区保持聚焦
+komactl win move-to-workspace 3
+
+# 跟随：工作区 3 变为活跃，窗口保持键盘焦点
+komactl win move-to-workspace 3 --follow
+```
+
+渲染方面，`scene.inventory` 会为恰好一个工作区标记 `"focused": true`（即 `active_ws_id`），因此不支持 `ext-workspace-v1` 的状态栏也能一次调用读出焦点，而无需追踪 `workspace.focused` 事件。
 
 ## 单调 `Epoch` 并发围栏
 

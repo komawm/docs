@@ -17,6 +17,57 @@ Koma はパネル・ロック画面・ポータル・リモートデスクトッ
 | `zwlr_foreign_toplevel_manager_v1`・`ext_foreign_toplevel_list_v1` | タスクバー／パネルのウィンドウ一覧・切替／最小化／終了 | 制限クライアントから除外およびロック中保護 |
 | `zwlr_virtual_pointer_manager_v1`・`zwp_keyboard_shortcuts_inhibit_manager_v1` | リモートデスクトップ仮想ポインタとショートカット抑制転送（`RustDesk`） | 制限クライアントには非公開。`Mod + G` プリエンプションと VT 切替は抑制対象外 |
 
+## ワークスペースモデル（`ext-workspace-v1`）と Waybar
+
+Koma は [`ext-workspace-v1`](https://wayland.app/protocols/ext-workspace-v1)（staging）を `ext_workspace_manager_v1` として制限なしクライアントに公開するため、ステータスバーはランタイムファイルをポーリングせずにワークスペースの一覧取得・追従・切り替えを行えます。サンドボックス化されたクライアントや `wp_security_context_manager_v1` 経由のクライアントは、`zwlr_layer_shell_v1` と同様にバインドできません。
+
+| バーが受け取る情報 | Koma の値 |
+| :--- | :--- |
+| グループ | `ext_workspace_group_handle_v1` はただ 1 つ。`output_enter` / `output_leave` で全出力を保持 |
+| ワークスペース | ワークスペースごとに `ext_workspace_handle_v1` を 1 つ（`special:` オーバーレイを含む） |
+| `id` | Koma のワークスペース ID（`ws_01`）。ストリップ番号ではなく安定したドア ID |
+| `name` | 設定したワークスペース名（`1`、`chat`、`special:magic`） |
+| `coordinates` | ストリップ順の一意な 1 次元インデックス。数値名を値順に先頭へ、その後ろに名前付きワークスペース |
+| `capabilities` | `activate` のみ |
+| `state` | 表示中（出力に割り当て済み、開いている `special:` オーバーレイ、または `active_ws_id`）なら `active`。通常の非表示ワークスペースには状態ビットを付けない。`hidden` は画面上に表現を持たないワークスペース（ヘッドレス／`agent:`）だけに付く |
+
+プロパティイベントは差分のみで、各バッチは `done` で終わります。単一イベントから状態を組み立て直さず、受信した値をキャッシュしてください。`workspace.activate` は要求であり、そのマネージャが `commit` を送った時点で有効になります。1 回の `commit` より前の複数の activate は 1 つのバッチとして適用され、最後の要求だけが有効になるため、途中のワークスペースが一瞬表示されたり `workspace.focused` を発火したりすることはありません。切り替え自体は `Mod + 1..0` と同じ経路を通り、マネージャが `stop` を送るか切断すると保留中の要求は破棄されます。セッションロック中の `commit` は無視されます。
+
+### Waybar の `ext/workspaces`
+
+```jsonc
+// ~/.config/waybar/config.jsonc
+"modules-center": ["ext/workspaces"],
+
+"ext/workspaces": {
+  "format": "{name} {icon}",
+  "on-click": "activate",
+  "ignore-hidden": true,
+  "sort-by-name": true,
+  "format-icons": {
+    "active": "●",
+    "default": "○"
+  }
+}
+```
+
+```css
+/* ~/.config/waybar/style.css */
+#workspaces button {
+  padding: 0 6px;
+  border-radius: 4px;
+}
+#workspaces button.active {
+  background: #7aa2f7;
+  color: #16161e;
+}
+#workspaces button.hidden {
+  opacity: 0.55;
+}
+```
+
+`ignore-hidden: true` は安全であり推奨です。プロトコルは `hidden` を「ワークスペースグループ内で可視でなく、コンポジタのワークスペース状態を可視化しようとするクライアントはそのようなワークスペースを表示すべきでない」と定義しており、Koma は画面上に表現を持たないワークスペースにのみ設定します。通常の非アクティブなワークスペースには状態ビットが付かないため、クリック可能なままです。`icon` / `format-icons` は機能します（このモジュールが照合するキーは `active` と `default` で、ワークスペース名のキーも一致します）が、`urgent` は決して発火しません。Koma にはウィンドウの緊急度という概念がないため、緊急ワークスペースは存在しません。`"sort-by-name": true` を維持してください。`"sort-by-id": true` はドア ID（`ws_01`、`ws_02`…）順になるため、ID が作成順と一致している間だけ正しく見えます。`"on-click-right": "close"` や `"deactivate"` を設定しても何も起こりません。Koma が公開するのは `activate` だけです。
+
 ## スクリーンコピーと `xdg-desktop-portal`
 
 - **`zwlr_screencopy_manager_v1` (v3)**：SHM / DMA-BUF キャプチャ（`grim`、`wayshot`、`slurp`）に対応し、1 フレームあたり単一の `buffer` / `linux_dmabuf` イベントを送出します。`block_out_from = "screencopy"` / `"all"` の黒塗りマスクおよび `ext-session-lock-v1` のフェイルクローズド遮断を遵守します。

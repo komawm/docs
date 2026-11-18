@@ -10,10 +10,11 @@
 | :--- | :--- | :--- |
 | `komactl validate [path/to/init.lua]` | オフライン | 隔離された Lua サンドボックスで `init.lua` を評価し、ルール正規表現・ジェスチャ検証とリソース数を出力 |
 | `komactl reload [path/to/init.lua]` | IPC（`admin.sock`） | `config.reload` を送信し、実行中コンポジタの設定をアトミックに切り替え |
-| `komactl config-status` | IPC（`admin.sock`）+ オフライン | 有効な設定パス、リロード世代、直近のエラー（`config.status`）に加え、生成テンプレートの `template.{installed_version,shipped_version,outdated,missing_files}` を表示 |
+| `komactl config-status` | IPC（`admin.sock`）+ オフライン | 有効な設定パス、リロード世代、直近のエラー（`config.status`）、実際に適用中の `input.pointer` / `input.touchpad` 設定に加え、生成テンプレートの `template.{init_lua,present,installed_version,shipped_version,outdated,missing_files}` を表示 |
 | `komactl init [dir] [--force]` | オフライン | `init.lua`、`lua/{input,workspaces,appearance,window_rules,keybinds}.lua`、`lua/macros/example.lua` を生成。既存ファイルは `--force` がない限り上書きしない |
 | `komactl gen-types` | オフライン | `koma-types`（`types/koma.lua`）用の決定論的な `LuaCATS` スタブを出力 |
-| `komactl inventory` | IPC（`admin.sock`） | 稼働中のモニター、ワークスペース、`Epoch` カウンタ、Deck ウィンドウ、Stash スロットを出力（`scene.inventory`） |
+| `komactl inventory` | IPC（`admin.sock`） | 稼働中のモニター、ワークスペース、`Epoch` カウンタ、Deck ウィンドウ、Stash スロットを出力（`scene.inventory`）。ちょうど 1 つのワークスペースに `"focused": true` が付く |
+| `komactl win move-to-workspace <ws_id\|name> [--follow]` | IPC（`admin.sock`） | フォーカス中ワークスペースのアクティブウィンドウを既存ワークスペースへ移動（`win.move_to_workspace`）。`--follow` で移動先へ切り替え、未指定なら移動元のフォーカスを維持 |
 | `komactl token mint [label]` | IPC（`admin.sock`） | スコープ付き `CapabilityToken` を発行（`ttl_secs = 28800`、`can_create_headless = true`、`max_owned_workspaces = 4`） |
 | `komactl capture [ws_id] [out.rgba]` | IPC（`admin.sock`） | `SCM_RIGHTS` シール済み `memfd` から `grid_225` オーバーレイ付きフレームをゼロコピー取得（既定 `ws_01`） |
 | `komactl sandbox <subcmd>` | コンテナ + IPC | `bwrap` またはルートレス `podman` で隔離された `Headless` ワークスペースに GUI コンテナを起動 |
@@ -36,6 +37,12 @@ lua/macros/example.lua
 `init.lua` は薄いルーターで、`lua/keybinds.lua` には既定キーマップ全体が `koma.bind(...)` 呼び出しとして展開されます。そのため生成ファイルと組み込みフォールバックキーマップがずれることはありません。各ファイルの先頭には機械可読マーカー `-- koma-config-template: <version>` が付きます。
 
 既存ファイルは上書きされません。`komactl init` は競合するパスを列挙して停止し、`--force` を付けた場合のみ置き換えます。編集後は `komactl validate` と `komactl reload` を実行してください。`komactl config-status` はオンディスクのマーカーを同梱テンプレートと比較し、`template.installed_version`、`template.shipped_version`、`template.outdated`、`template.missing_files` を報告します。
+
+バージョン比較だけでは判別できない状況を補うため、`template` には 2 つのフィールドがあります。`template.init_lua` は実際に検査したパス（`KOMA_CONFIG`、次に `$XDG_CONFIG_HOME/koma/init.lua`、次に `$HOME/.config/koma/init.lua` の順で解決）で、`template.present` はそのファイルが存在するかどうかを示します。マーカーのない手書きの `init.lua` は `installed_version: null` かつ `outdated: false` と報告され、古いテンプレートとは区別されます。逆に一部だけ削除された雛形は `missing_files` に現れます。
+
+## `komactl config-status` が示す実効入力設定
+
+同じレポートにはコンポジタの `config.status` が含まれ、`input.pointer` と `input.touchpad` ブロックに Koma が実際に適用している値（`accel_speed`、`accel_profile`、`natural_scroll`、`scroll_factor`、`follow_mouse`、タッチパッドでは `tap_to_click` と `disable_while_typing`）が並びます。`null` はそのキーが `init.lua` に一度も書かれていないことを意味し、libinput の組み込み既定値が適用されます。`accel_profile` は `"adaptive"`（既定の曲線）か `"flat"`（加速なし）のいずれかです。同じ物理移動量で他コンポジタとカーソル移動距離が違う場合は、まず `accel_speed` と `accel_profile` を比較してください。プロファイル未設定が差分のほとんどを説明します。
 
 ## `komactl sandbox` によるコンテナ隔離
 
