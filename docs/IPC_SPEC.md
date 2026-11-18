@@ -27,7 +27,7 @@ When `koma` starts a session, it creates a mode-`0700` runtime directory under `
 | Socket Filename       | File Mode | Intended Clients                                               | Authentication & Default Authority                                                                                                                                                                                                                                                                                 |
 | --------------------- | --------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **`koma-admin.sock`** | `0600`    | `komactl`, `koma-overview`, status bars, human keybind scripts | Verified via kernel peer credentials (`SO_PEERCRED` on Linux, `LOCAL_PEERCRED` on FreeBSD/OpenBSD) and blocked for sandboxed clients tagged via [`security-context-v1`](https://wayland.app/protocols/security-context-v1). Grants full workspace lifecycle, token minting, macro recording, and `Headed` control. |
-| **`koma-agent.sock`** | `0600`    | `koma-mcp`, autonomous agents, untrusted automation scripts    | Connection starts in `Unauthenticated` state; the first frame **must** be `auth.authenticate` carrying a valid `CapabilityToken`. Grants access strictly to token-scoped workspaces.                                                                                                                               |
+| **`koma-agent.sock`** | `0600`    | `koma mcp`, autonomous agents, untrusted automation scripts    | Connection starts in `Unauthenticated` state; the first frame **must** be `auth.authenticate` carrying a valid `CapabilityToken`. Grants access strictly to token-scoped workspaces.                                                                                                                               |
 
 ### 2.2 Binary Frame Header and `SCM_RIGHTS` Ancillary FDs
 
@@ -78,7 +78,7 @@ pub struct IpcError {
 
 ### 3.1 Token Structure and Scope Rules
 
-A `CapabilityToken` is an ephemeral 256-bit cryptographically random secret (`koma_cap_<43-char-base64url>`) stored exclusively in compositor RAM and never written to disk. Administrators (or `koma` when spawning `koma-mcp`) mint tokens via `auth.mint_token` on `koma-admin.sock`:
+A `CapabilityToken` is an ephemeral 256-bit cryptographically random secret (`koma_cap_<43-char-base64url>`) stored exclusively in compositor RAM and never written to disk. Administrators (or `koma` when spawning `koma mcp`) mint tokens via `auth.mint_token` on `koma-admin.sock`:
 
 ```
 {
@@ -179,7 +179,7 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
   "method": "auth.authenticate",
   "params": {
     "token": "koma_cap_9vK2mPq8...",
-    "client_name": "koma-mcp-stdio",
+    "client_name": "koma mcp (stdio)",
     "protocol_version": "0.1"
   }
 }
@@ -352,7 +352,7 @@ Every mutating RPC (`win.*`, `vseat.*`, `lua.exec_tx`) **must** include `"ws_id"
   - `vseat.path` / `vseat.stroke`: Multi-waypoint trajectories (`"spline": "auto" | "catmull_rom" | "bezier"`, centripetal $\alpha = 0.5$ interpolation, `250 Hz` adaptive sub-frame resampling, optional mouse `button` hold for spline drawing).
   - `vseat.relative_move`, `vseat.wheel`, `vseat.hit_test`, `vseat.cursor_label`, and `vseat.cursor_settle`: Relative pointer deltas, wheel scrolling, surface hit-testing without actuation, floating `LabelPill` + `caret_rect` caption control, and smooth cursor settling.
   - `DeliverySemantics`: IPC errors populate `disposition` (`DeliveryDisposition` + `RetryDisposition`) so callers distinguish `NotDelivered` / `DeliveryUncertain` from verified execution.
-  - `koma-mcp` stdio server lazily connects to `koma-agent.sock`, auto-detects `Content-Length` vs `NDJSON` framing per message, and exposes all 17 core tools (`koma_ping`..`koma_cursor_label`).
+  - `koma mcp` stdio server lazily connects to `koma-agent.sock`, auto-detects `Content-Length` vs `NDJSON` framing per message, and exposes all 17 core tools (`koma_ping`..`koma_cursor_label`).
 
 - **`vseat.key`**: `{ "ws_id": "ws_01", "expected_epoch": 4, "modifiers": ["Ctrl", "Shift"], "key": "End", "action": "tap" | "down" | "up", "hold_ms": 30 }`.
 

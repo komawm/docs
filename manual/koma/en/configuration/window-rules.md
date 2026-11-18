@@ -22,6 +22,8 @@ Koma matches Wayland and XWayland windows with `koma.rule.window({...})` and `wl
 
 Supported `anchor` values for `default_floating_pos` are `"top-left"`, `"top"`, `"top-right"`, `"left"`, `"center"`, `"right"`, `"bottom-left"`, `"bottom"`, and `"bottom-right"`.
 
+`initial.open_mode = "fullscreen"` and `"maximized"` are distinct states: fullscreen covers the whole monitor including gaps (and suppresses `Top`/`Overlay` surfaces while active), while maximized fills the work area minus gaps and exclusive zones so panels stay visible. They are mutually exclusive.
+
 ### Practical Examples (`~/.config/koma/init.lua`)
 
 ```lua
@@ -90,7 +92,7 @@ koma.rule.layer({
 > Active session lockscreens (`ext-session-lock-v1`), authentication prompts (`polkit-gnome-authentication-agent`, `hyprpolkitagent`, `pinentry`), and common password managers (`KeePassXC`, `Bitwarden`, `1Password`) are protected by default. Custom rules can protect any window or layer via `block_out_from`.
 
 - **Capture Redaction**: Surfaces with `block_out_from = "agent_capture"` or `"all"` are painted solid `#000000` in offscreen `capture.frame` exports—even when another window overlaps them.
-- **Input Write Fence (`4032`)**: Any virtual-seat (`vseat.*`) click, drag, key, or text injection targeting a protected surface is rejected with `4032 ERR_PROTECTED_SURFACE`. Neither `koma-mcp` nor [Jiku](/jiku/) can read or drive protected surfaces.
+- **Input Write Fence (`4032`)**: Any virtual-seat (`vseat.*`) click, drag, key, or text injection targeting a protected surface is rejected with `4032 ERR_PROTECTED_SURFACE`. Neither `koma mcp` nor [Jiku](/jiku/) can read or drive protected surfaces.
 - **Screencopy & Screencast Isolation**: `"screencopy"` and `"all"` redact the surface from `zwlr_screencopy_manager_v1` (`grim`) captures; `"screencast"` redacts it from portal PipeWire streams.
 
 ## Compatibility Notes

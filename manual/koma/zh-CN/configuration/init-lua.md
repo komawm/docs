@@ -1,6 +1,6 @@
 # 布局、外观与 init.lua
 
-Koma 默认从 `~/.config/koma/init.lua`（或 `$XDG_CONFIG_HOME/koma/init.lua`，回退路径为 `/etc/xdg/koma/init.lua`）加载配置。可通过环境变量 `KOMA_CONFIG` 或启动参数 `koma -c <path>` 指定其他配置文件；较长的配置可拆分到 `~/.config/koma/lua/` 目录中并用 `require(...)` 引入。
+Koma 默认从 `~/.config/koma/init.lua`（或 `$XDG_CONFIG_HOME/koma/init.lua`，回退路径为 `/etc/xdg/koma/init.lua`）加载配置。可通过环境变量 `KOMA_CONFIG` 或启动参数 `koma -c <path>` 指定其他配置文件；较长的配置可拆分到 `~/.config/koma/lua/` 目录中并用 `require(...)` 引入。运行 `komactl init` 可直接生成这套模块化骨架（详见 [komactl 与工作区概览](/zh-CN/docs/protocols-and-tools/cli-and-overview/)）。
 
 ![Koma 横向滚动工作区布局与 Lua 配置预览](https://cdn.komawm.org/media/koma-scrolling.webp "Scrolling 连续横向滚动列布局与状态栏预览。")
 
@@ -107,14 +107,17 @@ koma.appearance({
 koma.unbind("Mod + Return")
 koma.bind("Mod + Return", koma.act.spawn({ "foot" }), { desc = "Launch foot" })
 koma.bind("Mod + O", koma.act.overview.toggle(), { desc = "Toggle koma-overview" })
+koma.bind("Mod + Shift + E", koma.act.quit(), { desc = "Exit Koma" })
 ```
+
+内置默认绑定同样使用这套动作接口，包括 `koma.act.reload_config()`、`koma.act.quit()` 与 `koma.act.window.maximize_toggle()`。
 
 | 辅助接口 | 用途 |
 | :--- | :--- |
 | `koma.env(key, val)` | 向 Koma 启动的子进程导出环境变量 |
 | `koma.mode(name, spec)` | 定义子模式，通过 `koma.act.mode.enter(name)` 进入、`koma.act.mode.exit()` 退出 |
 | `koma.on(event, fn)` | 注册生命周期事件回调 |
-| `koma.macro.define(spec)` | 定义参数化 GUI 宏并暴露给 `koma-mcp` |
+| `koma.macro.define(spec)` | 定义参数化 GUI 宏并暴露给 `koma mcp` |
 
 ## 环境变量（`koma.env`）
 

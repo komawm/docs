@@ -122,14 +122,14 @@ jiku completions fish > ~/.config/fish/completions/jiku.fish
 
 ## 外部コーディングエージェント連携（`Claude Code`・`Codex`・`OpenCode`・`pi`・`Cursor`）
 
-`jiku mcp`（12 ツール）と `koma-mcp`（17 ツール）はどちらもメッセージ単位で `Content-Length` と `NDJSON` の stdio フレーミングを自動判別します。`Claude Code`・`Codex`・`Cursor`・`pi`・OpenCode（`~/.config/opencode/opencode.json`）へ登録して連携できます：
+`jiku mcp`（12 ツール）と `koma mcp`（17 ツール）はどちらもメッセージ単位で `Content-Length` と `NDJSON` の stdio フレーミングを自動判別します。`Claude Code`・`Codex`・`Cursor`・`pi`・OpenCode（`~/.config/opencode/opencode.json`）へ登録して連携できます：
 
 ```json
 {
   "mcp": {
     "koma": {
       "type": "local",
-      "command": ["koma-mcp"],
+      "command": ["koma", "mcp"],
       "enabled": true
     },
     "jiku": {
@@ -142,7 +142,7 @@ jiku completions fish > ~/.config/fish/completions/jiku.fish
 ```
 
 トークンは `komactl token mint <label>` で発行し、エージェントホストを起動するシェルで
-エクスポートしてください。`koma-mcp` は `KOMA_CAPABILITY_TOKEN` を環境から読むため、トークンを
+エクスポートしてください。`koma mcp` は `KOMA_CAPABILITY_TOKEN` を環境から読むため、トークンを
 設定ファイルに書く必要はありません。環境を継承しないホストの場合は、そのホスト自身の
 environment ブロックに設定してください。エージェントが制御する MCP サーバーに
 `--auto-mint-admin` を渡してはいけません。エージェントが自身の権限を発行できてしまいます。`jiku status` は Koma セッションが動作している必要があり、

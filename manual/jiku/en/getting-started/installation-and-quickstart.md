@@ -124,14 +124,14 @@ The script is rendered from the same table that produces `jiku --help`, so neste
 
 ## Using Jiku from External Coding Agents (`Claude Code`, `Codex`, `OpenCode`, `pi`, `Cursor`)
 
-Both `jiku mcp` (12 orchestration tools) and `koma-mcp` (17 compositor tools) auto-detect `Content-Length` and `NDJSON` stdio framing per message. Register them in `Claude Code`, `Codex`, `Cursor`, `pi`, or OpenCode (`~/.config/opencode/opencode.json`):
+Both `jiku mcp` (12 orchestration tools) and `koma mcp` (17 compositor tools) auto-detect `Content-Length` and `NDJSON` stdio framing per message. Register them in `Claude Code`, `Codex`, `Cursor`, `pi`, or OpenCode (`~/.config/opencode/opencode.json`):
 
 ```json
 {
   "mcp": {
     "koma": {
       "type": "local",
-      "command": ["koma-mcp"],
+      "command": ["koma", "mcp"],
       "enabled": true
     },
     "jiku": {
@@ -144,7 +144,7 @@ Both `jiku mcp` (12 orchestration tools) and `koma-mcp` (17 compositor tools) au
 ```
 
 Mint the token with `komactl token mint <label>` and export it in the shell that starts the
-agent host; `koma-mcp` reads `KOMA_CAPABILITY_TOKEN` from its environment, so the token never has
+agent host; `koma mcp` reads `KOMA_CAPABILITY_TOKEN` from its environment, so the token never has
 to live in configuration. If your host does not inherit the environment, set it in that host's
 own environment block. Never pass `--auto-mint-admin` to an agent-controlled MCP server: it would
 let the agent mint its own grants.

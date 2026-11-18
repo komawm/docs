@@ -119,14 +119,14 @@ jiku completions fish > ~/.config/fish/completions/jiku.fish
 
 ## 接入外部编码智能体（`Claude Code`、`Codex`、`OpenCode`、`pi`、`Cursor`）
 
-`jiku mcp`（12 个编排工具）与 `koma-mcp`（17 个合成器工具）均会在每条消息边界自动识别 `Content-Length` 与 `NDJSON` stdio 帧格式。可在 `Claude Code`、`Codex`、`Cursor`、`pi` 或 OpenCode（`~/.config/opencode/opencode.json`）中注册接入：
+`jiku mcp`（12 个编排工具）与 `koma mcp`（17 个合成器工具）均会在每条消息边界自动识别 `Content-Length` 与 `NDJSON` stdio 帧格式。可在 `Claude Code`、`Codex`、`Cursor`、`pi` 或 OpenCode（`~/.config/opencode/opencode.json`）中注册接入：
 
 ```json
 {
   "mcp": {
     "koma": {
       "type": "local",
-      "command": ["koma-mcp"],
+      "command": ["koma", "mcp"],
       "enabled": true
     },
     "jiku": {
@@ -138,7 +138,7 @@ jiku completions fish > ~/.config/fish/completions/jiku.fish
 }
 ```
 
-用 `komactl token mint <label>` 签发令牌，并在启动智能体宿主的 shell 中导出。`koma-mcp`
+用 `komactl token mint <label>` 签发令牌，并在启动智能体宿主的 shell 中导出。`koma mcp`
 从环境读取 `KOMA_CAPABILITY_TOKEN`，因此令牌无需写入配置文件；若宿主不继承环境，请在其
 自身的 environment 配置块中设置。不要给由智能体控制的 MCP 服务器传 `--auto-mint-admin`，
 否则智能体可以自行签发权限。`jiku status` 需要 Koma 会话在运行，

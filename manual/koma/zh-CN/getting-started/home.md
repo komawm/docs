@@ -13,7 +13,7 @@
 2. **按工作区独立布局与视觉效果**：每个工作区可独立使用 `"dwindle"`（有头工作区默认）、`"scrolling"`（横向滚动列）、`"deck"`（全视口单窗堆栈与后台 Stash）或 `"bsp"`，并支持 Dual-Kawase 模糊、圆角、阴影、焦点环与弹簧动画。
 3. **人类优先抢占（`< 1 ms`）**：任意物理键鼠输入或按下 `Mod + G`，都会立即吊销当前的自动化写租约，并通过单调递增的 `Epoch` 计数阻断过期并发指令（`4091 ERR_HUMAN_PREEMPTED`）。
 4. **内置容器沙箱与双套接字隔离**：将完整管理通道（`koma-admin.sock`）与基于能力令牌的受限通道（`koma-agent.sock`）分离，并支持通过 `komactl sandbox`（`bwrap` / 无根 `podman`）与 `wp_security_context_manager_v1` 隔离窗口客户端。
-5. **高精度智能体指针与 17 项 MCP 工具**：支持 `250 Hz` 多路点 `vseat.path` / `vseat.stroke` 样条轨迹、Smithay `ClickGrab` 拖拽投递、GLES2 SDF 智能体光标与 `LabelPill`（`label_enabled`）、`DeliverySemantics` 投递语义与支持双帧协议（`Content-Length` + NDJSON）的延迟连接 `koma-mcp`。
+5. **高精度智能体指针与 17 项 MCP 工具**：支持 `250 Hz` 多路点 `vseat.path` / `vseat.stroke` 样条轨迹、Smithay `ClickGrab` 拖拽投递、GLES2 SDF 智能体光标与 `LabelPill`（`label_enabled`）、`DeliverySemantics` 投递语义与支持双帧协议（`Content-Length` + NDJSON）的延迟连接 `koma mcp` 子命令。
 
 ## 手册导航
 
@@ -33,7 +33,7 @@
 ```bash
 git clone https://github.com/komawm/koma.git
 cd koma
-cargo build --release --locked -p koma -p komactl -p koma-mcp -p koma-overview
+cargo build --release --locked -p koma -p komactl -p koma-overview
 ./target/release/koma --headless-check
 ./target/release/komactl gen-types > /tmp/koma-types-check.lua
 ```

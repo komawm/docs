@@ -38,6 +38,26 @@ Every Lua evaluation inside `koma-lua` runs under deterministic `gc-arena` memor
 
 * **Immutable Ring 0 Rescue Chords**: Regardless of Lua state, `koma-seat` reserves `Mod + G` (Human Preemptive Lease Takeover: `1 ms` virtual modifier flush + `epoch + 1` increment) and `Ctrl + Alt + F1..F12` (VT switch via [`libseat`](https://www.reddit.com/r/linuxquestions/comments/1ez8igt/whats_the_difference_between_seatd_and_logind/)) in compiled Rust prior to Lua dispatch.
 
+### 1.3 Generated Configuration Scaffold (`komactl init`)
+
+`koma-lua::scaffold` owns the starter configuration tree rendered by `komactl init [dir] [--force]` and by the first-run bootstrap. The tree is a fixed contract:
+
+```text
+init.lua
+lua/input.lua
+lua/workspaces.lua
+lua/appearance.lua
+lua/window_rules.lua
+lua/keybinds.lua
+lua/macros/example.lua
+```
+
+* `init.lua` is a thin router that `require`s each module under the sandboxed `lua/` jail.
+* `lua/keybinds.lua` is rendered from the same `KEYBIND_CATALOG` that backs the built-in fallback keymap, fully expanded as `koma.bind(...)` calls, so the generated file and the compiled defaults cannot drift.
+* Every generated file begins with the machine-readable marker `-- koma-config-template: <version>`. `TEMPLATE_VERSION` is bumped when the tree changes shape.
+* Existing files are never overwritten: `komactl init` refuses and lists conflicts unless `--force` is supplied.
+* `komactl config-status` reports `template.installed_version`, `template.shipped_version`, `template.outdated`, and `template.missing_files` alongside the compositor's `config.status` payload.
+
 ## 2. Display, Output & Dual-Mode Workspace API
 
 ### 2.1 Physical Monitor Configuration (`koma.monitor`)
@@ -246,6 +266,10 @@ koma.appearance({
 
 `koma.bezier(name, x1, y1, x2, y2, duration_ms?)` (or `{ points = {x1, y1, x2, y2}, duration_ms }`) and `koma.spring(name, { mass, damping, damping_ratio, stiffness, epsilon })` merge named curves into `animations.curves` without wiping previously registered keys when `koma.appearance(...)` is evaluated afterward. Named presets include `"linear"`, `"ease_out"`, `"default"`, `"md3_decel"`, `"overshot"`, `"fluent"`, `"snappy_spring"`, `"bouncy_spring"`, and `"gentle_spring"`. Window open/close styles support `"popin"`, `"popin 85%"`, `"slide"`, `"slide top|bottom|left|right"`, `"gnomed"`, and `"fade"`; workspace transition styles support `"slide"`, `"slidevert"`, `"fade"`, and `"none"`.
 
+`pointer.follow_mouse` maps Hyprland's `input:follow_mouse`: `"off"` (`0`) focuses only on click, `"normal"` (`1`, the default) focuses and raises the window under the cursor within its workspace, and `"focus_only"` (`2`) gives that window keyboard focus without raising it. Unknown values fall back to `"normal"`. Pointer motion over gaps, layer-shell surfaces, an active grab, or a locked session does not change focus.
+
+`animations.windows_close` / `close_scale_to` animate the window contents on close. The last committed frame is cached in GPU memory (`WindowFrameCache`) and read back as the closing snapshot: borders, the focus ring, and the drop shadow disappear when the close starts, while the cached contents shrink to `close_scale_to` and fade to zero opacity. The snapshot and read-back are skipped when `animations.enabled = false` or when the close channel resolves to an `Instant` curve (`"instant"` / `"none"`, or `style = "none"`), in which case the window is freed synchronously. Closing snapshots are compositor-only: they are already removed from `mapped_windows`, so layout, hit-testing, focus, and `scene.inventory` never observe them.
+
 ## 3. Keybindings, Modal Submaps & Gestures API
 
 ### 3.1 Fast-Path Action Descriptors vs. Lua Coroutine Callbacks (`koma.bind`)
@@ -266,6 +290,7 @@ local term_bind = koma.bind("Mod + Return", koma.act.spawn({ "ghostty" }), {
 -- Built-in window, column, monitor, workspace, and Agent Deck/Stash actions
 koma.bind("Mod + Q", koma.act.window.close(), { desc = "Close focused window" })
 koma.bind("Mod + F", koma.act.window.fullscreen_toggle(), { desc = "Toggle fullscreen" })
+koma.bind("Mod + M", koma.act.window.maximize_toggle(), { desc = "Toggle maximize (work area, bar stays visible)" })
 koma.bind("Mod + V", koma.act.window.float_toggle(), { desc = "Toggle floating state" })
 koma.bind("Mod + H", koma.act.focus.left(), { desc = "Focus column/window left" })
 koma.bind("Mod + L", koma.act.focus.right(), { desc = "Focus column/window right" })
@@ -275,6 +300,8 @@ koma.bind("Mod + Shift + Period", koma.act.window.move_to_monitor_right(), { des
 koma.bind("Mod + BracketLeft",  koma.act.deck.cycle_prev(), { desc = "Pop previous window from Stash to Deck" })
 koma.bind("Mod + BracketRight", koma.act.deck.cycle_next(), { desc = "Cycle active Deck window into Stash" })
 koma.bind("Mod + Tab", koma.act.overview.toggle(), { desc = "Toggle koma-overview workspace grid" })
+koma.bind("Mod + Shift + R", koma.act.reload_config(), { desc = "Reload configuration atomically" })
+koma.bind("Mod + Shift + E", koma.act.quit(), { desc = "Quit the compositor gracefully" })
 
 -- Interactive pointer grabs (move / resize) and scroll triggers
 koma.bind("Mod + MouseLeft",  koma.act.window.drag_move(),   { desc = "Interactive window move grab" })
@@ -337,6 +364,25 @@ koma.gesture({
 })
 
 ```
+
+### 3.4 Window Presentation: Fullscreen vs. Maximized
+
+`koma.act.window.fullscreen_toggle()` (`Mod + F`) and `koma.act.window.maximize_toggle()` (`Mod + M`) drive the mutually exclusive `WorkspaceState::window_presentation` state. Only one window per workspace can hold one of them, and a call for the other mode clears the current one.
+
+* `Fullscreen` covers `viewport.full_rect()` — gaps and exclusive zones included. While it is active, `output_layer_tiers` suppresses the `Top`/`Overlay` tiers on the hosting output; those surfaces stay mapped and return immediately once fullscreen ends. Other windows on the workspace are not composited.
+* `Maximized` covers `viewport.work_area_rect()` inset by the active layout's outer gap, so exclusive zones (status bars) remain visible.
+
+`koma.act.scrolling.maximize_column()` (`Mod + Shift + M`) is a Scrolling-column action and is unrelated to window maximize.
+
+`koma.act.window.move_to_workspace(ws, opts?)` moves the focused window and follows it by default (`follow = true`). Passing `{ follow = false }` is the `movetoworkspacesilent` equivalent: the window moves while focus stays on the source workspace.
+
+`koma.act.reload_config()` and `koma.act.quit()` expose the `Mod + Shift + R` and `Mod + Shift + E` defaults to Lua, so a generated keymap can express the same actions as the built-in table.
+
+### 3.5 Frame-Edge Resize Without a Modifier
+
+Dragging a window border or corner starts `start_frame_edge_resize_grab` with no modifier, selecting `W`/`E`/`N`/`S`/`NW`/`NE`/`SW`/`SE` pointer shapes for the matching edge. `Mod + MouseRight` (`koma.act.window.drag_resize()`) remains available for the same grab.
+
+`Deck` refuses a tiled edge drag because its active window always fills the viewport; the request is logged and a floating Deck window resizes normally. `Dwindle` and `Scrolling` accept frame-edge resizes on both tiled and floating windows.
 
 ## 4. Declarative Window & Layer Rules Engine
 
@@ -478,7 +524,7 @@ koma.rule.layer({
 
 ## 5. Timed Macro & Coroutine Automation API (`koma.macro`)
 
-`koma.macro` turns shortcut-rich desktop applications—spreadsheets (WPS/Excel/Calc), word processors, 3D/animation suites (Blender), DAWs, and keyboard-driven games—into zero-token, sub-millisecond reusable skills callable by human hotkeys, `komactl`, `koma-mcp`, or native decisions-API `choice` policies.
+`koma.macro` turns shortcut-rich desktop applications—spreadsheets (WPS/Excel/Calc), word processors, 3D/animation suites (Blender), DAWs, and keyboard-driven games—into zero-token, sub-millisecond reusable skills callable by human hotkeys, `komactl`, `koma mcp`, or native decisions-API `choice` policies.
 
 ### 5.1 9-Anchor Window-Relative Coordinate Geometry (`AnchorPoint`)
 
@@ -551,7 +597,7 @@ koma.macro.define({
 
 ### 5.3 Defining Parameterized Macros (`koma.macro.define`)
 
-Declaring a `params` schema allows `koma-mcp` to automatically expose the macro as a typed MCP tool and allows a decision model to invoke pre-validated macro banks without generating raw coordinates or burning LLM output tokens:
+Declaring a `params` schema allows `koma mcp` to automatically expose the macro as a typed MCP tool and allows a decision model to invoke pre-validated macro banks without generating raw coordinates or burning LLM output tokens:
 
 ```
 -- Example 1: Zero-Token WPS / Excel Table Ingestion & Ribbon Formatting Macro

@@ -47,6 +47,12 @@ koma.appearance({
 - **Window open/close styles**: `"popin"` (e.g. `"popin 85%"`), `"slide"` (nearest viewport edge, or `"slide top"`, `"slide bottom"`, `"slide left"`, `"slide right"`), `"gnomed"`, and `"fade"`.
 - **Workspace switch styles**: `"slide"`, `"slidevert"`, `"fade"`, and `"none"` (workspace animations are automatically skipped in headless captures and screencasts).
 
+### Close Animation
+
+`windows_close` (alias `windows_out`) and `close_scale_to` animate the window contents on close. The last committed frame is cached in GPU memory, so borders, the focus ring, and the drop shadow disappear as soon as the close starts while the cached contents shrink to `close_scale_to` and fade out.
+
+The snapshot is skipped when `animations.enabled = false` or when the close channel resolves to an `Instant` curve (`"instant"` / `"none"`, or `style = "none"`); the window is then freed immediately.
+
 ## Gradient Borders, Blur & Window Overrides
 
 Set global rounded corners (`corner_radius`), multi-stop rotating gradient borders, and Dual Kawase blur in `koma.appearance({...})`, then tune individual applications with `koma.rule.window({...})`:

@@ -44,7 +44,7 @@ paru -S koma-bin
 
 # またはソース PKGBUILD ビルド / 検証済みパッケージの直接導入
 paru -S koma
-sudo pacman -U koma-0.0.2-1-x86_64.pkg.tar.zst
+sudo pacman -U koma-0.0.3-1-x86_64.pkg.tar.zst
 ```
 
 `seatd`（または `systemd-libs`）、`libinput`、`mesa`、`libdisplay-info`、`libxkbcommon`、`wayland`、`pixman`、`libglvnd` が依存関係として解決されます。
@@ -88,11 +88,15 @@ koma completions fish > ~/.config/fish/completions/koma.fish
 git clone https://github.com/komawm/koma.git
 cd koma
 just fmt-check typecheck clippy test
-cargo build --release --locked -p koma -p komactl -p koma-mcp -p koma-overview
+cargo build --release --locked -p koma -p komactl -p koma-overview
 ./target/release/koma --headless-check
 ```
 
 従来の X11 アプリ互換には外部ルートレスの [`xwayland-satellite`](https://github.com/Supreeeme/xwayland-satellite) を併用してください。
+
+## 初回設定
+
+Koma は組み込みの既定値だけで起動でき、`~/.config/koma/init.lua` は必須ではありません。モジュール構成の雛形（`init.lua`、`lua/{input,workspaces,appearance,window_rules,keybinds}.lua`、`lua/macros/example.lua`）を明示的に生成するには `komactl init` を実行します。既存ファイルは `--force` を付けない限り変更されません。生成される構成と `komactl config-status` のテンプレート報告については [komactl とワークスペース概観](/ja/docs/protocols-and-tools/cli-and-overview/) を参照してください。
 
 ## セッション統合（`greetd`・`systemd --user`）
 

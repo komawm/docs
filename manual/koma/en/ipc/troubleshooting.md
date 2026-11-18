@@ -27,6 +27,7 @@ Common fixes for seat/DRM startup, software rendering, broken Lua configs, IPC s
   ```
 - `komactl reload` evaluates the script in an isolated sandbox first. Syntax errors, invalid rule regexes, or runaway loops fail safely without wiping your active binds and layout; run `komactl config-status` to inspect the error.
 - If a bad config prevents startup, run `koma -c /dev/null` (or move `~/.config/koma/init.lua` aside) to boot with built-in defaults.
+- To rebuild a missing scaffold, run `komactl init` (add `--force` to replace an existing tree). `komactl config-status` reports whether the on-disk template is outdated or incomplete.
 
 ## 4. `komactl` Cannot Find `koma-admin.sock`
 
@@ -36,6 +37,7 @@ Common fixes for seat/DRM startup, software rendering, broken Lua configs, IPC s
   ls -la "$XDG_RUNTIME_DIR/koma/"
   ```
 - If multiple instances are running, export `KOMA_INSTANCE_SIGNATURE=<dir_name>` before running `komactl`.
+- From an external terminal, `koma init fish | source` (or `eval "$(koma init bash)"`) exports the live instance variables, including `WAYLAND_DISPLAY` and `DISPLAY` while XWayland is up. It never prints capability tokens and fails clearly when zero or several instances are live.
 
 ## 5. IME (`Fcitx5` / `IBus`) Not Appearing in Chromium / Electron
 

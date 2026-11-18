@@ -22,6 +22,8 @@ Koma 在 `~/.config/koma/init.lua` 中使用 `koma.rule.window({...})` 匹配 Wa
 
 `default_floating_pos.anchor` 支持 `"top-left"`、`"top"`、`"top-right"`、`"left"`、`"center"`、`"right"`、`"bottom-left"`、`"bottom"` 与 `"bottom-right"`。
 
+`initial.open_mode = "fullscreen"` 与 `"maximized"` 是两种不同状态：全屏覆盖包含间隙的整个显示器（激活期间抑制 `Top`/`Overlay` 表面），最大化则填充排除区域之外再减去间隙的工作区，因此面板保持可见。两者互斥。
+
 ### 常用配置示例（`~/.config/koma/init.lua`）
 
 ```lua
@@ -90,7 +92,7 @@ koma.rule.layer({
 > 锁屏表面（`ext-session-lock-v1`）、权限认证框（`polkit-gnome-authentication-agent`、`hyprpolkitagent`、`pinentry`）以及常见密码管理器（`KeePassXC`、`Bitwarden`、`1Password`）默认自动受保护；其他窗口可通过 `block_out_from` 加入保护。
 
 - **截屏涂黑**：命中 `block_out_from = "agent_capture"` 或 `"all"` 的窗口与 Layer 表面在导出离屏帧（`capture.frame`）时会被直接涂黑为 `#000000`，即使被其他窗口遮挡或重叠也同样生效。
-- **输入拦截（`4032`）**：任何落入受保护表面区域的虚拟座席（`vseat.*`）点击、拖拽、按键或文本注入都会被拒绝并返回 `4032 ERR_PROTECTED_SURFACE`。`koma-mcp` 与 [Jiku](/zh-CN/jiku/) 都无法查看或操作受保护表面。
+- **输入拦截（`4032`）**：任何落入受保护表面区域的虚拟座席（`vseat.*`）点击、拖拽、按键或文本注入都会被拒绝并返回 `4032 ERR_PROTECTED_SURFACE`。`koma mcp` 与 [Jiku](/zh-CN/jiku/) 都无法查看或操作受保护表面。
 - **截图与录屏隔离**：`"screencopy"` 与 `"all"` 会在 `zwlr_screencopy_manager_v1`（`grim`）抓屏中涂黑；`"screencast"` 会在 Portal PipeWire 录屏流中涂黑。
 
 ## 兼容说明

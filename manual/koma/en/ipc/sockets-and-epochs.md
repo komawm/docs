@@ -17,7 +17,7 @@ Every workspace maintains a monotonic `Epoch` counter that increments on lease c
 
 | Error Code | Symbol | Meaning & Recovery |
 | :--- | :--- | :--- |
-| **`4090`** | `ERR_STALE_EPOCH` | Workspace state changed between observation and execution; action is aborted before input dispatch (`koma-mcp` attaches a fresh PNG at `new_observed_epoch`) |
+| **`4090`** | `ERR_STALE_EPOCH` | Workspace state changed between observation and execution; action is aborted before input dispatch (`koma mcp` attaches a fresh PNG at `new_observed_epoch`) |
 | **`4091`** | `ERR_HUMAN_PREEMPTED` | User pressed `Mod + G` or generated physical input; agent must stop and yield control |
 | **`4032`** | `ERR_PROTECTED_SURFACE` | Target hit a `block_out_from` protected window or layer; input is blocked and pixels are masked `#000000` |
 
@@ -29,19 +29,19 @@ Every workspace maintains a monotonic `Epoch` counter that increments on lease c
 - **3-Tier `TextInjectStrategy`**: UTF-8 text injection selects `xkb_keymap`, `text_input_v3`, or `clipboard` (`Ctrl+Shift+V`) automatically to avoid triggering Fcitx5/IBus candidate popups.
 - **Sealed `SCM_RIGHTS` `memfd` / SHM**: `capture.frame` writes RGBA8 frames into a read-only sealed `memfd` (Linux/FreeBSD) or POSIX shared-memory descriptor (BSD fallback) passed via `SCM_RIGHTS` instead of copying large pixel buffers over JSON.
 
-## `koma-mcp` Stdio Server
+## `koma mcp` Stdio Server
 
-`koma-mcp` connects lazily to `koma-agent.sock` and auto-detects both `Content-Length` (LSP-style) and newline-delimited JSON (`NDJSON`) stdio framing per message for MCP clients (`Claude Code`, `Codex`, `Cursor`, `OpenCode`, `pi`, or [Jiku](/jiku/)):
+`koma mcp` is a subcommand of the `koma` binary; there is no separate `koma-mcp` executable. It connects lazily to `koma-agent.sock` and auto-detects both `Content-Length` (LSP-style) and newline-delimited JSON (`NDJSON`) stdio framing per message for MCP clients (`Claude Code`, `Codex`, `Cursor`, `OpenCode`, `pi`, or [Jiku](/jiku/)):
 
 ```bash
 # Inspect built-in MCP tool schemas offline
-koma-mcp --print-tools
+koma mcp --print-tools
 
 # Run with an explicit capability token
-KOMA_CAPABILITY_TOKEN=koma_cap_... koma-mcp
+KOMA_CAPABILITY_TOKEN=koma_cap_... koma mcp
 
 # Local convenience mode (auto-mints a scoped token via koma-admin.sock)
-koma-mcp --auto-mint-admin
+koma mcp --auto-mint-admin
 ```
 
-Built-in `koma-mcp` exposes 17 core tools (`koma_ping`, `koma_scene_inventory`, `koma_ws_create`, `koma_capture_frame`, `koma_click`, `koma_drag`, `koma_key`, `koma_inject_text`, `koma_paste_mime`, `koma_win_activate`, `koma_exec_macro`, `koma_path`, `koma_cursor_settle`, `koma_wheel`, `koma_relative_move`, `koma_hit_test`, and `koma_cursor_label`), plus any `macro__<id>` macros registered in `~/.config/koma/init.lua` via `koma.macro.define(...)`.
+Built-in `koma mcp` exposes 17 core tools (`koma_ping`, `koma_scene_inventory`, `koma_ws_create`, `koma_capture_frame`, `koma_click`, `koma_drag`, `koma_key`, `koma_inject_text`, `koma_paste_mime`, `koma_win_activate`, `koma_exec_macro`, `koma_path`, `koma_cursor_settle`, `koma_wheel`, `koma_relative_move`, `koma_hit_test`, and `koma_cursor_label`), plus any `macro__<id>` macros registered in `~/.config/koma/init.lua` via `koma.macro.define(...)`.
