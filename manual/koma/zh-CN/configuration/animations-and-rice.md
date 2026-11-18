@@ -47,6 +47,12 @@ koma.appearance({
 - **窗口开关样式**：`"popin"`（例如 `"popin 85%"`）、`"slide"`（自动贴靠最近边缘，或指定 `"slide top"`、`"slide bottom"`、`"slide left"`、`"slide right"`）、`"gnomed"` 与 `"fade"`。
 - **工作区切换样式**：`"slide"`、`"slidevert"`、`"fade"` 与 `"none"`（无头抓屏与录屏场景会自动跳过工作区过渡动画）。
 
+### 关闭动画
+
+`windows_close`（别名 `windows_out`）与 `close_scale_to` 控制窗口关闭时内容的变化。最后提交的一帧会缓存到 GPU 内存，因此关闭开始时边框、焦点环与投影立即消失，仅剩缓存画面按 `close_scale_to` 缩小并淡出。
+
+当 `animations.enabled = false`，或关闭通道解析为 `Instant` 曲线（`"instant"` / `"none"`，或 `style = "none"`）时会跳过快照，窗口立即释放。
+
 ## 渐变边框、模糊与单窗口覆盖
 
 在 `koma.appearance({...})` 中设置全局圆角（`corner_radius`）、旋转多色渐变边框和 Dual Kawase 模糊，再通过 `koma.rule.window({...})` 微调特定应用：

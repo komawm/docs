@@ -17,6 +17,11 @@ CLI オプションはディスプレイ、シート、または DRM デバイ�
 | `koma --headless-check` | CLI と設定ステートマシンの自己診断 | CI、パッケージング、導入後の動作確認 |
 | `--spawn <CMD>` | コンポジタソケットの準備完了後に `<CMD>` を起動 | 例：`koma --winit --spawn foot`、`koma --tty --spawn bitty` |
 | `-c, --config <PATH>` | `$XDG_CONFIG_HOME/koma/init.lua` 以外の設定ファイルを指定 | 代替 Lua 設定のテスト |
+| `koma init <bash\|zsh\|fish\|nushell>` | 稼働中インスタンスの環境をシェル向けに出力：`WAYLAND_DISPLAY`、`KOMA_INSTANCE_SIGNATURE`、`XDG_RUNTIME_DIR`、`DISPLAY`（XWayland 稼働中のみ）、`XDG_SESSION_TYPE`、`XDG_CURRENT_DESKTOP` | 外部ターミナルから `komactl` を実行（`koma init fish \| source`） |
+| `koma completions <bash\|zsh\|fish>` | バイナリ自身のコマンド表から生成した補完スクリプトを出力 | 手動でのシェル補完設定 |
+| `koma mcp [--print-tools]` | `koma-agent.sock` に対する stdio MCP サーバーを起動（独立した `koma-mcp` バイナリは存在しません） | MCP 対応デスクトップホストへの登録 |
+
+`koma init` はケイパビリティトークンを一切出力しません。稼働中インスタンスが 0 個または複数ある場合は推測せず明確なエラーで停止するため、その場合は `KOMA_INSTANCE_SIGNATURE` で対象を指定します。`--unset` を付けると逆の代入を出力します。
 
 > [!NOTE]
 > バックエンド指定を省略した場合、通常の環境で `WAYLAND_DISPLAY` または `DISPLAY` が設定されていれば `--winit`（`--session` 時は物理シート対象）、それ以外は `--tty` が選択されます。`SIGTERM` / `SIGINT` / `SIGHUP` を受信するとソケットを清掃し終了コード `0` で終了します。
@@ -28,27 +33,45 @@ CLI オプションはディスプレイ、シート、または DRM デバイ�
 | `Mod + Return` | `spawn({ "bitty" })` | 既定ターミナル（Bitty）を起動。無い場合は `foot` にフォールバック |
 | `Mod + Q` | `window.close()` | フォーカス中のウィンドウを閉じる |
 | `Mod + V` | `window.float_toggle()` | フローティング切替 |
-| `Mod + F` | `window.fullscreen_toggle()` | フルスクリーン切替 |
+| `Mod + F` | `window.fullscreen_toggle()` | フルスクリーン切替（モニター全体、ギャップも含む） |
+| `Mod + M` | `window.maximize_toggle()` | 最大化切替（作業領域からギャップを除いた範囲。バーは表示されたまま） |
 | `Mod + P` | `window.pseudotile_toggle()` | Dwindle 疑似タイル切替 |
 | `Mod + E` | `dwindle.toggle_split()` | Dwindle 分割方向（縦／横）切替 |
 | `Mod + H / J / K / L` | `focus.left/down/up/right()` | 方向別にフォーカス移動 |
 | `Mod + Shift + H / J / K / L` | `window.move_direction(...)` | 方向別にウィンドウ移動／入れ替え |
 | `Mod + 1..9` | `workspace.focus("1".."9")` | ワークスペース `1`〜`9` へ切替 |
-| `Mod + Shift + 1..9` | `window.move_to_workspace("1".."9")` | ワークスペース `1`〜`9` へウィンドウ移動 |
+| `Mod + Shift + 1..9` | `window.move_to_workspace("1".."9")` | ワークスペース `1`〜`9` へウィンドウを移動し、フォーカスも追従 |
 | `Mod + R` / `Mod + Ctrl + R` | `scrolling.switch_preset_column_width()` | スクロール列幅プリセットの順／逆送り |
 | `Mod + Ctrl + Shift + R` | `scrolling.switch_preset_window_height()` | スクロールウィンドウ高さプリセット切替 |
-| `Mod + C` / `Mod + M` | `scrolling.center_column()` / `maximize_column()` | 列の中央寄せ／最大化 |
+| `Mod + C` | `scrolling.center_column()` | アクティブなスクロール列を中央寄せ |
+| `Mod + Shift + M` | `scrolling.maximize_column()` | アクティブなスクロール列を最大化 |
 | `Mod + W` | `scrolling.toggle_column_tabbed_display()` | 列内タブ表示の切替 |
 | `Mod + Comma` / `Mod + Period` | `scrolling.consume_window_into_column()` / `expel_window_from_column()` | 列への取り込み／切り離し |
 | `Mod + BracketLeft` / `BracketRight` | `scrolling.consume_or_expel_window_left/right()` | 左／右の列へ統合または分離 |
 | `Mod + S` / `Mod + Shift + S` | `scratchpad.toggle()` / `move_window()` | スクラッチパッド切替／移動 |
 | `Mod + Tab` | `overview.toggle()` | `koma-overview` 空間ワークスペーススイッチャーを表示 |
-| `Mod + MouseLeft` / `MouseRight` | `window.drag_move()` / `drag_resize()` | ドラッグによる移動・リサイズ |
+| `Mod + MouseLeft` / `MouseRight` | `window.drag_move()` / `drag_resize()` | ドラッグによる移動・リサイズ（修飾キーなしの枠線・角ドラッグでもリサイズ） |
 | `Mod + WheelScrollDown / Up` | `workspace.focus_next()` / `focus_prev()` | ホイールでワークスペース切替（`150 ms` クールダウン） |
 | `Mod + WheelScrollLeft / Right` | `deck.cycle_prev()` / `cycle_next()` | Deck/Stash スタック巡回（`150 ms` クールダウン） |
-| `Mod + Shift + R` | `compositor.reload_config()` | `init.lua` をホットリロード |
-| `Mod + Shift + E` | `compositor.quit()` | コンポジタを安全終了 |
+| `Mod + Shift + R` | `koma.act.reload_config()` | `init.lua` をホットリロード |
+| `Mod + Shift + E` | `koma.act.quit()` | コンポジタを安全終了 |
 | `Mod + G`（プリエンプション障壁） | 即時人間プリエンプション | `< 1 ms` でエージェントの操作リースを無効化（`4091 ERR_HUMAN_PREEMPTED`） |
+
+## フルスクリーンと最大化（`Mod + F` / `Mod + M`）
+
+- **フルスクリーン（`Mod + F`、`koma.act.window.fullscreen_toggle()`）** はモニター全体を覆い、ギャップも含みます。有効な間は `Top` / `Overlay` レイヤー（ステータスバー、ランチャー）は合成されませんが、マップ状態は維持され、終了すると即座に再表示されます。ワークスペース上の他のウィンドウは非表示になります。
+- **最大化（`Mod + M`、`koma.act.window.maximize_toggle()`）** は排他ゾーンを除く作業領域からギャップを引いた範囲を埋めるため、バーは表示されたままです。
+- 2 つの状態は相互排他で、一方に入ると他方は解除されます。`Mod + Shift + M` は Scrolling の `koma.act.scrolling.maximize_column()` であり、ウィンドウ最大化とは別の操作です。
+
+## 枠線ドラッグによるリサイズ
+
+ウィンドウの枠線や角をドラッグすると、修飾キーなしでリサイズできます。ポインタは該当する辺に応じて `W` / `E` / `N` / `S` / `NW` / `NE` / `SW` / `SE` の形状に変わります。`Mod + 右ドラッグ`（`window.drag_resize()`）も引き続き利用できます。
+
+Deck はタイル表示のウィンドウが常にビューポート全体を占めるため、枠線ドラッグを拒否してログで先にフロートするよう案内します。フロートした Deck ウィンドウはリサイズできます。
+
+## ワークスペース間のウィンドウ移動
+
+`Mod + Shift + 1..9` と `koma.act.window.move_to_workspace(ws)` はフォーカス中のウィンドウを移動し、そのウィンドウへフォーカスも追従します。`koma.act.window.move_to_workspace(ws, { follow = false })` は `movetoworkspacesilent` 相当で、フォーカスは元のワークスペースに残ります。
 
 ## ワークスペース概観とキルスイッチ（`Mod + Tab` / `Mod + G`）
 

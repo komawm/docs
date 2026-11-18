@@ -89,6 +89,8 @@ koma.input({
 
 On clickpads without separate physical mouse buttons (such as Apple Force Touch trackpads), Koma defaults `click_method` to `"clickfinger"` and `disable_while_typing` to `true` unless overridden above or per device.
 
+`pointer.follow_mouse` maps Hyprland's `input:follow_mouse` values: `"off"` (`0`) focuses only on click, `"normal"` (`1`) focuses and raises the hovered window inside its workspace, and `"focus_only"` (`2`) gives the hovered window keyboard focus without raising it. The default is `"normal"`, and unknown values fall back to `"normal"`. Pointer motion over gaps or layer-shell surfaces never changes focus.
+
 ## Per-Device Overrides (`koma.device`)
 
 Use `koma.device({...})` to override `libinput` options or output mapping for a single device name:

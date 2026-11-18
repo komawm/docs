@@ -17,6 +17,11 @@ Koma 会在打开任何显示设备、座席或 DRM 节点之前先完成命令�
 | `koma --headless-check` | 命令行与状态机自检 | CI、打包校验与安装后检查 |
 | `--spawn <CMD>` | 合成器套接字就绪后启动指定命令 | 如 `koma --winit --spawn foot` 或 `koma --tty --spawn bitty` |
 | `-c, --config <PATH>` | 覆盖默认 `$XDG_CONFIG_HOME/koma/init.lua` 路径 | 测试临时或备用 Lua 配置 |
+| `koma init <bash\|zsh\|fish\|nushell>` | 输出当前实例的 shell 环境：`WAYLAND_DISPLAY`、`KOMA_INSTANCE_SIGNATURE`、`XDG_RUNTIME_DIR`、`DISPLAY`（仅 XWayland 运行时）、`XDG_SESSION_TYPE` 与 `XDG_CURRENT_DESKTOP` | 在外部终端中运行 `komactl`（`koma init fish \| source`） |
+| `koma completions <bash\|zsh\|fish>` | 依据二进制自身的命令表输出补全脚本 | 手动安装 shell 补全 |
+| `koma mcp [--print-tools]` | 对 `koma-agent.sock` 启动 stdio MCP 服务器（不再有独立的 `koma-mcp` 可执行文件） | 注册到 MCP 桌面宿主 |
+
+`koma init` 绝不输出能力令牌。若没有活动实例或同时存在多个实例，它会给出明确错误而不是猜测；此时请用 `KOMA_INSTANCE_SIGNATURE` 指定目标实例。`--unset` 输出相反的赋值语句。
 
 > [!NOTE]
 > 不显式指定后端时，若检测到 `WAYLAND_DISPLAY` 或 `DISPLAY`（非 `--session` 模式）则自动选择 `--winit`，否则选择 `--tty`。收到 `SIGTERM`、`SIGINT` 或 `SIGHUP` 时会执行干净退出（返回码 `0`）并清理运行时套接字。
@@ -28,27 +33,45 @@ Koma 会在打开任何显示设备、座席或 DRM 节点之前先完成命令�
 | `Mod + Return` | `spawn({ "bitty" })` | 启动默认终端（Bitty），缺失时回退到 `foot` |
 | `Mod + Q` | `window.close()` | 关闭当前聚焦窗口 |
 | `Mod + V` | `window.float_toggle()` | 切换窗口浮动状态 |
-| `Mod + F` | `window.fullscreen_toggle()` | 切换全屏 |
+| `Mod + F` | `window.fullscreen_toggle()` | 切换全屏（覆盖整个显示器，含间隙） |
+| `Mod + M` | `window.maximize_toggle()` | 切换最大化（工作区减去间隙；状态栏保持可见） |
 | `Mod + P` | `window.pseudotile_toggle()` | 切换 Dwindle 伪平铺 |
 | `Mod + E` | `dwindle.toggle_split()` | 切换 Dwindle 水平/垂直分割方向 |
 | `Mod + H / J / K / L` | `focus.left/down/up/right()` | 按方向移动焦点 |
 | `Mod + Shift + H / J / K / L` | `window.move_direction(...)` | 按方向移动或交换窗口 |
 | `Mod + 1..9` | `workspace.focus("1".."9")` | 切换至工作区 `1`–`9` |
-| `Mod + Shift + 1..9` | `window.move_to_workspace("1".."9")` | 将当前窗口移动至工作区 `1`–`9` |
+| `Mod + Shift + 1..9` | `window.move_to_workspace("1".."9")` | 将当前窗口移动至工作区 `1`–`9` 并跟随焦点 |
 | `Mod + R` / `Mod + Ctrl + R` | `scrolling.switch_preset_column_width()` | 正向/反向循环切换滚动列预设宽度 |
 | `Mod + Ctrl + Shift + R` | `scrolling.switch_preset_window_height()` | 循环切换滚动列窗口高度预设 |
-| `Mod + C` / `Mod + M` | `scrolling.center_column()` / `maximize_column()` | 居中或最大化当前滚动列 |
+| `Mod + C` | `scrolling.center_column()` | 居中当前滚动列 |
+| `Mod + Shift + M` | `scrolling.maximize_column()` | 最大化当前滚动列 |
 | `Mod + W` | `scrolling.toggle_column_tabbed_display()` | 切换当前列多窗口标签页模式 |
 | `Mod + Comma` / `Mod + Period` | `scrolling.consume_window_into_column()` / `expel_window_from_column()` | 并入当前列或从当前列拆出 |
 | `Mod + BracketLeft` / `BracketRight` | `scrolling.consume_or_expel_window_left/right()` | 向左或向右并入/拆出列 |
 | `Mod + S` / `Mod + Shift + S` | `scratchpad.toggle()` / `move_window()` | 呼出/隐藏暂存区或将窗口移入暂存区 |
 | `Mod + Tab` | `overview.toggle()` | 打开/关闭 `koma-overview` 空间工作区切换器 |
-| `Mod + MouseLeft` / `MouseRight` | `window.drag_move()` / `drag_resize()` | 鼠标拖拽移动或缩放窗口 |
+| `Mod + MouseLeft` / `MouseRight` | `window.drag_move()` / `drag_resize()` | 鼠标拖拽移动或缩放窗口（无修饰键拖动边框/角落同样可缩放） |
 | `Mod + WheelScrollDown / Up` | `workspace.focus_next()` / `focus_prev()` | 滚轮切换工作区（`150 ms` 冷却） |
 | `Mod + WheelScrollLeft / Right` | `deck.cycle_prev()` / `cycle_next()` | 滚轮在 Deck/Stash 间轮换窗口（`150 ms` 冷却） |
-| `Mod + Shift + R` | `compositor.reload_config()` | 热重载 `init.lua` |
-| `Mod + Shift + E` | `compositor.quit()` | 安全退出合成器 |
+| `Mod + Shift + R` | `koma.act.reload_config()` | 热重载 `init.lua` |
+| `Mod + Shift + E` | `koma.act.quit()` | 安全退出合成器 |
 | `Mod + G`（抢占屏障） | 立即人类抢占 | `< 1 ms` 吊销智能体写租约（`4091 ERR_HUMAN_PREEMPTED`） |
+
+## 全屏与最大化（`Mod + F` / `Mod + M`）
+
+- **全屏（`Mod + F`，`koma.act.window.fullscreen_toggle()`）** 覆盖整个显示器，包含间隙。激活期间 `Top` / `Overlay` 层（状态栏、启动器）不再参与合成，但仍保持映射状态，退出全屏后立即恢复显示。工作区内的其他窗口会被隐藏。
+- **最大化（`Mod + M`，`koma.act.window.maximize_toggle()`）** 填充排除区域之外、再减去间隙的工作区范围，因此状态栏保持可见。
+- 两种状态互斥，进入一种会清除另一种。`Mod + Shift + M` 是 Scrolling 的 `koma.act.scrolling.maximize_column()`，与窗口最大化无关。
+
+## 拖动边框调整大小
+
+无需任何修饰键，拖动窗口边框或角落即可调整大小。指针会根据所在边切换为 `W` / `E` / `N` / `S` / `NW` / `NE` / `SW` / `SE` 形状。`Mod + 右键拖拽`（`window.drag_resize()`）仍然可用。
+
+Deck 中平铺窗口始终铺满视口，因此会拒绝边框拖拽，并在日志中提示先将其浮动；浮动后的 Deck 窗口可以正常调整大小。
+
+## 在工作区之间移动窗口
+
+`Mod + Shift + 1..9` 与 `koma.act.window.move_to_workspace(ws)` 会移动焦点窗口并让焦点跟随。`koma.act.window.move_to_workspace(ws, { follow = false })` 等价于 `movetoworkspacesilent`，焦点保留在原工作区。
 
 ## 全局概览与急停开关（`Mod + Tab` / `Mod + G`）
 

@@ -13,7 +13,7 @@
 2. **ワークスペースごとのレイアウトとエフェクト**：ワークスペース単位で `"dwindle"`（有画面の既定）、`"scrolling"`（水平スクロール列）、`"deck"`（全画面ビューポート＋背面 Stash）、`"bsp"` を選択でき、Dual-Kawase ブラー・角丸・ドロップシャドウ・フォーカスリング・スプリングアニメーションを利用できます。
 3. **人間優先の即時プリエンプション（`< 1 ms`）**：物理キーボード／ポインタの入力、または `Mod + G` の押下によって稼働中の操作リースを即座に無効化し、単調増加する `Epoch` カウンタで古い IPC 書き込みを拒否します（`4091 ERR_HUMAN_PREEMPTED`）。
 4. **コンテナ隔離と二系統ソケット**：管理者用ソケット（`koma-admin.sock`）と機能トークン制の制限ソケット（`koma-agent.sock`）を分離し、`komactl sandbox`（`bwrap` / ルートレス `podman`）および `wp_security_context_manager_v1` によるクライアント隔離を備えています。
-5. **高精度エージェントポインタと 17 種の MCP ツール**：`250 Hz` 多点 `vseat.path` / `vseat.stroke` スプライン、Smithay `ClickGrab` ドラッグ配送、GLES2 SDF エージェントカーソル＋`LabelPill`（`label_enabled`）、`DeliverySemantics` エラー応答、遅延接続・双方向フレーミング（`Content-Length` + NDJSON）対応 `koma-mcp` を備えています。
+5. **高精度エージェントポインタと 17 種の MCP ツール**：`250 Hz` 多点 `vseat.path` / `vseat.stroke` スプライン、Smithay `ClickGrab` ドラッグ配送、GLES2 SDF エージェントカーソル＋`LabelPill`（`label_enabled`）、`DeliverySemantics` エラー応答、遅延接続・双方向フレーミング（`Content-Length` + NDJSON）対応の `koma mcp` サブコマンドを備えています。
 
 ## ドキュメント構成
 
@@ -33,7 +33,7 @@
 ```bash
 git clone https://github.com/komawm/koma.git
 cd koma
-cargo build --release --locked -p koma -p komactl -p koma-mcp -p koma-overview
+cargo build --release --locked -p koma -p komactl -p koma-overview
 ./target/release/koma --headless-check
 ./target/release/komactl gen-types > /tmp/koma-types-check.lua
 ```

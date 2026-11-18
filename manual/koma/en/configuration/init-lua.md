@@ -1,6 +1,6 @@
 # Layouts, Appearance & init.lua
 
-Koma reads its configuration from `~/.config/koma/init.lua` (or `$XDG_CONFIG_HOME/koma/init.lua`, falling back to `/etc/xdg/koma/init.lua`). You can override the config path with `KOMA_CONFIG` or `koma -c <path>`, and split larger setups into modules under `~/.config/koma/lua/` loaded via `require(...)`.
+Koma reads its configuration from `~/.config/koma/init.lua` (or `$XDG_CONFIG_HOME/koma/init.lua`, falling back to `/etc/xdg/koma/init.lua`). You can override the config path with `KOMA_CONFIG` or `koma -c <path>`, and split larger setups into modules under `~/.config/koma/lua/` loaded via `require(...)`. Running `komactl init` generates that modular tree for you (see [komactl & Workspace Overview](/docs/protocols-and-tools/cli-and-overview/)).
 
 ![Koma scrolling workspace layout and Lua configuration](https://cdn.komawm.org/media/koma-scrolling.webp "Scrolling strip layout with multi-column focus and status bar.")
 
@@ -107,14 +107,17 @@ By default, `inherit_default_binds = true` loads Koma's built-in keymap. `koma.b
 koma.unbind("Mod + Return")
 koma.bind("Mod + Return", koma.act.spawn({ "foot" }), { desc = "Launch foot" })
 koma.bind("Mod + O", koma.act.overview.toggle(), { desc = "Toggle koma-overview" })
+koma.bind("Mod + Shift + E", koma.act.quit(), { desc = "Exit Koma" })
 ```
+
+The built-in defaults are expressed with the same action surface, including `koma.act.reload_config()`, `koma.act.quit()`, and `koma.act.window.maximize_toggle()`.
 
 | Helper | Purpose |
 | :--- | :--- |
 | `koma.env(key, val)` | Exports an environment variable to child processes spawned by Koma |
 | `koma.mode(name, spec)` | Defines a submap mode entered via `koma.act.mode.enter(name)` and left via `koma.act.mode.exit()` |
 | `koma.on(event, fn)` | Registers a Lua callback on compositor lifecycle events |
-| `koma.macro.define(spec)` | Registers a parameterized automation macro exposed to `koma-mcp` |
+| `koma.macro.define(spec)` | Registers a parameterized automation macro exposed to `koma mcp` |
 
 ## Environment Variables (`koma.env`)
 

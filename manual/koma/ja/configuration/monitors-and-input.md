@@ -89,6 +89,8 @@ koma.input({
 
 独立した物理ボタンを持たないクリックパッド（Apple Force Touch トラックパッド等）では、明示的な上書きがない限り `click_method = "clickfinger"` と `disable_while_typing = true` が既定で有効になります。
 
+`pointer.follow_mouse` は Hyprland の `input:follow_mouse` 値に対応します。`"off"`（`0`）はクリック時のみフォーカスし、`"normal"`（`1`、既定）はカーソル下のウィンドウへフォーカスしてワークスペース内で最前面へ持ち上げ、`"focus_only"`（`2`）は持ち上げずにキーボードフォーカスだけを与えます。未知の値は `"normal"` にフォールバックします。ギャップやレイヤーシェル表面上の移動ではフォーカスは変わりません。
+
 ## デバイス個別設定（`koma.device`）
 
 特定のデバイス名に対して `libinput` の挙動や出力先モニターを個別に上書きできます。

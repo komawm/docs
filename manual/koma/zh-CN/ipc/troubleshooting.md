@@ -27,6 +27,7 @@
   ```
 - `komactl reload` 会先在隔离沙箱中求值新配置；若存在语法错误、非法正则或死循环，错误会被拦截并记录到 `komactl config-status`，不会破坏当前已生效的快捷键和窗口布局。
 - 若开机配置出错导致无法启动，可运行 `koma -c /dev/null`（或临时移走 `~/.config/koma/init.lua`）以内置默认配置启动后再修复。
+- 需要重建骨架时运行 `komactl init`（替换现有配置树需加 `--force`）。`komactl config-status` 会报告磁盘上的模板是否过期或缺少文件。
 
 ## 4. `komactl` 找不到 `koma-admin.sock`
 
@@ -36,6 +37,7 @@
   ls -la "$XDG_RUNTIME_DIR/koma/"
   ```
 - 若同时运行了多个嵌套实例，请在调用 `komactl` 前导出 `export KOMA_INSTANCE_SIGNATURE=<目录名>`。
+- 外部终端可用 `koma init fish | source`（或 `eval "$(koma init bash)"`）载入活动实例的环境变量；XWayland 运行时会包含 `DISPLAY`。它不会输出能力令牌，且在没有实例或存在多个实例时给出明确错误。
 
 ## 5. `Fcitx5` / `IBus` 在 Chromium / Electron 中无法弹出候选框
 

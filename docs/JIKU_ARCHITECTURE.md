@@ -56,7 +56,7 @@ Unlike AI Coding Agents (`Claude Code`, `Codex`, `Copilot`, `OpenCode`) whose co
   [Claude Code / Codex / GitHub Copilot / OpenCode]   [MCP Clients (Cursor, Claude Code, etc.)]
          |                       \                                |
    (Fast Inner Loop:              \ (Sub-task Delegation:         | (Standard stdio MCP:
-    SKILL.md + komactl)            \ `jiku run "..."`)            |  `jiku mcp` / `koma-mcp`)
+    SKILL.md + komactl)            \ `jiku run "..."`)            |  `jiku mcp` / `koma mcp`)
          |                          v                             v
          |                   +---------------------------------------+
          |                   |     jikud (Native Companion Agent)    |

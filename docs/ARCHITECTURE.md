@@ -26,7 +26,7 @@ Modern tiling compositors face a sharp extensibility trade-off. In-process C++ `
 | ----- | ----- | ----- | ----- | 
 | **Ring 0: Rust Mechanism Microkernel** | `koma-model`, `koma-render`, `koma-seat`, `koma` | Built on [`Smithay`](https://github.com/smithay/smithay): physical DRM/KMS scanout, lazy offscreen FBO pools, `vSeat` focus and clipboard multiplexing, surface damage tracking, and double-buffered geometry barriers | Safe-Rust single-writer state machine; unbounded external callbacks are structurally prohibited on the VSync path | 
 | **Ring 1: In-Process `Phodopus` Policy Sandbox** | `koma-lua` (consuming `phodopus`) | Evaluates `~/.config/koma/init.lua` (aligned with Neovim and [`hyprland.lua`](https://github.com/hyprwm/Hyprland/blob/main/example/hyprland.lua) ergonomics), executes pure-function layout generators, and runs timed GUI macros and batch agent transactions | Stackless `gc-arena` Lua VM derived from [`Piccolo`](https://github.com/kyren/piccolo) with deterministic `Fuel` instruction metering and hard heap quotas; runaway scripts interrupt cleanly and fall back to built-in layouts | 
-| **Ring 2: Out-of-Process Ecosystem Daemons** | `koma-proto`, `komactl`, `koma-mcp`, `koma-overview` | Dual-socket IPC inspired by [`bspwm`](https://github.com/baskerville/bspwm) serving the stateless CLI, MCP server, `AT-SPI2` accessibility crawlers, hardware video recorders, and workspace thumbnail viewers | Separate OS processes; daemon crashes or restarts have zero impact on the compositor or running client windows | 
+| **Ring 2: Out-of-Process Ecosystem Daemons** | `koma-proto`, `komactl`, `koma mcp` (subcommand), `koma-overview` | Dual-socket IPC inspired by [`bspwm`](https://github.com/baskerville/bspwm) serving the stateless CLI, MCP server, `AT-SPI2` accessibility crawlers, hardware video recorders, and workspace thumbnail viewers | Separate OS processes; daemon crashes or restarts have zero impact on the compositor or running client windows |
 
 ### 2.1 Cargo Workspace Crate Topology
 
@@ -41,7 +41,7 @@ To keep incremental Rust builds fast and quarantine heavy Wayland/GPU C-library 
 | **Tier 2: Compositor Subsystems** | `koma-seat` | `lib` | Physical `libinput` `seat0` pass-through, per-workspace `vSeat` multiplexing, 3-tier Zero-IME text/MIME injection, and `xdg-foreign-v2` / `xdg-activation-v1` / `security-context-v1` protocol enforcement. | 
 | **Tier 2: Compositor Subsystems** | `koma` | `bin` | Main compositor executable wiring `calloop`, `libseat` DRM/KMS and Winit nested backends, `koma-lua` host adapter, Unix IPC sockets, and on-demand `xwayland-satellite` supervision. | 
 | **Tier 3: Ring 2 Userland Tools** | `komactl` | `bin` | Sub-millisecond stateless CLI controller (`adb`-style workspace, input, capture, macro recording/playback, and `gen-types` commands). Links only `koma-proto` and `koma-lua`. | 
-| **Tier 3: Ring 2 Userland Tools** | `koma-mcp` | `bin` | Standard `stdio` MCP server exposing scoped Computer Use tools and an embedded `Phodopus` Lua batch-transaction REPL for external LLM agents. | 
+| **Tier 3: Ring 2 Userland Tools** | `koma mcp` | `koma` subcommand | Standard `stdio` MCP server exposing scoped Computer Use tools and an embedded `Phodopus` Lua batch-transaction REPL for external LLM agents. |
 | **Tier 3: Ring 2 Userland Tools** | `koma-overview` | `bin` | Standalone Wayland client (`wgpu` + `wlr-layer-shell`) providing both status-bar hover thumbnail popups and a full-screen multi-agent live overview deck. | 
 
 ### 2.2 `koma-lua` Host ABI and Stackless `calloop` Trampoline
@@ -228,7 +228,7 @@ Pairing `Koma` with a dedicated decision model through a native decisions API (`
 
 * **Phase 2 (Locks, Kinematics & Macro Compiler)**: `WorkspaceLease + Epoch` preemption fencing, `Deck / Stash` stacks, kinematic pointer curves, isolated MIME clipboard paste, and `komactl macro record`.
 
-* **Phase 3 (Ecosystem Daemons & Dual-Brain Agents)**: `koma-mcp` stdio server, `koma-overview` hover thumbnailer and live deck, `DMA-BUF` ring-buffer recording integration, and reference decision-model macro/grid agent loops.
+* **Phase 3 (Ecosystem Daemons & Dual-Brain Agents)**: `koma mcp` stdio server, `koma-overview` hover thumbnailer and live deck, `DMA-BUF` ring-buffer recording integration, and reference decision-model macro/grid agent loops.
 
 
 ---
@@ -264,4 +264,4 @@ Pairing `Koma` with a dedicated decision model through a native decisions API (`
 
 ### 9.4 Three-Tier Agent Ecosystem & Companion `Jiku` Daemon
 
-`Koma` pairs with **`Jiku` (`jikud` / `jiku`)**, its dedicated same-UID sandboxed companion GUI agent (specified in **`docs/JIKU_ARCHITECTURE.md`** and **`docs/JIKU_CONFIG_SPEC.md`**), alongside `komactl` + `SKILL.md` for terminal Coding Agents (`Claude Code`, `Codex`) and `jiku mcp` / `koma-mcp` for standard MCP desktop hosts.
+`Koma` pairs with **`Jiku` (`jikud` / `jiku`)**, its dedicated same-UID sandboxed companion GUI agent (specified in **`docs/JIKU_ARCHITECTURE.md`** and **`docs/JIKU_CONFIG_SPEC.md`**), alongside `komactl` + `SKILL.md` for terminal Coding Agents (`Claude Code`, `Codex`) and `jiku mcp` / `koma mcp` for standard MCP desktop hosts.

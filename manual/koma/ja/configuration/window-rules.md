@@ -22,6 +22,8 @@ Koma は `~/.config/koma/init.lua` の `koma.rule.window({...})` で Wayland / X
 
 `default_floating_pos.anchor` には `"top-left"`, `"top"`, `"top-right"`, `"left"`, `"center"`, `"right"`, `"bottom-left"`, `"bottom"`, `"bottom-right"` を指定できます。
 
+`initial.open_mode = "fullscreen"` と `"maximized"` は別々の状態です。フルスクリーンはギャップを含むモニター全体を覆い（有効期間中は `Top`/`Overlay` サーフェスを抑制）、最大化は排他ゾーンを除く作業領域からギャップを引いた範囲を埋めるためパネルは表示されたままになります。両者は相互排他です。
+
 ### 設定例（`~/.config/koma/init.lua`）
 
 ```lua
@@ -90,7 +92,7 @@ koma.rule.layer({
 > セッションロック画面（`ext-session-lock-v1`）、認証ダイアログ（`polkit-gnome-authentication-agent`, `hyprpolkitagent`, `pinentry`）、主要パスワードマネージャ（`KeePassXC`, `Bitwarden`, `1Password`）は既定で保護対象となります。追加のウィンドウやレイヤーは `block_out_from` で指定できます。
 
 - **キャプチャ遮蔽**：`block_out_from = "agent_capture"` または `"all"` に一致するサーフェスは、オフスクリーン `capture.frame` 出力前に `#000000` で塗り潰されます（他のウィンドウと重なっている場合も同様です）。
-- **入力ブロック（`4032`）**：保護サーフェス領域への仮想シート（`vseat.*`）クリック・ドラッグ・キー・テキスト注入は `4032 ERR_PROTECTED_SURFACE` で拒否されます。`koma-mcp` や [Jiku](/ja/jiku/) から保護対象を読み取ったり操作したりすることはできません。
+- **入力ブロック（`4032`）**：保護サーフェス領域への仮想シート（`vseat.*`）クリック・ドラッグ・キー・テキスト注入は `4032 ERR_PROTECTED_SURFACE` で拒否されます。`koma mcp` や [Jiku](/ja/jiku/) から保護対象を読み取ったり操作したりすることはできません。
 - **スクリーンコピー／画面共有の分離**：`"screencopy"` と `"all"` は `zwlr_screencopy_manager_v1`（`grim`）から遮蔽し、`"screencast"` は Portal PipeWire ストリームで遮蔽します。
 
 ## 互換性に関する補足

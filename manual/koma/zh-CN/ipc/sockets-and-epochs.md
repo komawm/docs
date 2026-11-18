@@ -17,7 +17,7 @@ Koma 在 `$XDG_RUNTIME_DIR/koma/<signature>/`（目录权限 `0700`）下提供�
 
 | 错误码 | 符号 | 含义与恢复方式 |
 | :--- | :--- | :--- |
-| **`4090`** | `ERR_STALE_EPOCH` | 观测与执行之间窗口状态发生变化；动作在派发前被安全中止（`koma-mcp` 会自动附带最新 `new_observed_epoch` 的截图 PNG） |
+| **`4090`** | `ERR_STALE_EPOCH` | 观测与执行之间窗口状态发生变化；动作在派发前被安全中止（`koma mcp` 会自动附带最新 `new_observed_epoch` 的截图 PNG） |
 | **`4091`** | `ERR_HUMAN_PREEMPTED` | 人类按下 `Mod + G` 或触发物理键鼠输入；智能体必须暂停操作并交还控制权 |
 | **`4032`** | `ERR_PROTECTED_SURFACE` | 目标命中带 `block_out_from` 的受保护表面；输入被拦截且对应区域在截图中涂黑为 `#000000` |
 
@@ -29,19 +29,19 @@ Koma 在 `$XDG_RUNTIME_DIR/koma/<signature>/`（目录权限 `0700`）下提供�
 - **三级 `TextInjectStrategy`**：UTF-8 文本注入会自动在 `xkb_keymap`、`text_input_v3` 或 `clipboard`（`Ctrl+Shift+V`）之间选择合适路径，避免触发 Fcitx5/IBus 输入法候选框。
 - **只读密封 `SCM_RIGHTS` `memfd` / SHM**：`capture.frame` 将 RGBA8 像素数据写入只读密封的 `memfd`（Linux/FreeBSD）或 POSIX 共享内存描述符（BSD 回退路径），并通过 `SCM_RIGHTS` 传递文件描述符，避免大体积图像经过 JSON 拷贝。
 
-## `koma-mcp` 标准输入输出服务
+## `koma mcp` 标准输入输出服务
 
-`koma-mcp` 按需延迟连接 `koma-agent.sock`，并在 stdio 通道上逐帧自动识别 `Content-Length`（LSP 风格）与换行分隔 JSON（`NDJSON`）帧格式，可直接接入 `Claude Code`、`Codex`、`Cursor`、`OpenCode`、`pi` 或 [Jiku](/zh-CN/jiku/)：
+`koma mcp` 是 `koma` 二进制的子命令，不再有独立的 `koma-mcp` 可执行文件。它按需延迟连接 `koma-agent.sock`，并在 stdio 通道上逐帧自动识别 `Content-Length`（LSP 风格）与换行分隔 JSON（`NDJSON`）帧格式，可直接接入 `Claude Code`、`Codex`、`Cursor`、`OpenCode`、`pi` 或 [Jiku](/zh-CN/jiku/)：
 
 ```bash
 # 离线查看内置 MCP 工具 Schema
-koma-mcp --print-tools
+koma mcp --print-tools
 
 # 使用显式签发的 CapabilityToken 启动
-KOMA_CAPABILITY_TOKEN=koma_cap_... koma-mcp
+KOMA_CAPABILITY_TOKEN=koma_cap_... koma mcp
 
 # 本地开发便利模式（自动通过 koma-admin.sock 签发作用域令牌）
-koma-mcp --auto-mint-admin
+koma mcp --auto-mint-admin
 ```
 
-内置 `koma-mcp` 共暴露 17 个核心工具（`koma_ping`、`koma_scene_inventory`、`koma_ws_create`、`koma_capture_frame`、`koma_click`、`koma_drag`、`koma_key`、`koma_inject_text`、`koma_paste_mime`、`koma_win_activate`、`koma_exec_macro`、`koma_path`、`koma_cursor_settle`、`koma_wheel`、`koma_relative_move`、`koma_hit_test` 与 `koma_cursor_label`），以及所有在 `~/.config/koma/init.lua` 中通过 `koma.macro.define(...)` 注册的 `macro__<id>` 宏工具。
+内置 `koma mcp` 共暴露 17 个核心工具（`koma_ping`、`koma_scene_inventory`、`koma_ws_create`、`koma_capture_frame`、`koma_click`、`koma_drag`、`koma_key`、`koma_inject_text`、`koma_paste_mime`、`koma_win_activate`、`koma_exec_macro`、`koma_path`、`koma_cursor_settle`、`koma_wheel`、`koma_relative_move`、`koma_hit_test` 与 `koma_cursor_label`），以及所有在 `~/.config/koma/init.lua` 中通过 `koma.macro.define(...)` 注册的 `macro__<id>` 宏工具。

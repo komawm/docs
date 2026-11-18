@@ -47,6 +47,12 @@ koma.appearance({
 - **ウィンドウ開閉スタイル**：`"popin"`（例: `"popin 85%"`）、`"slide"`（最近接エッジ、または `"slide top"`, `"slide bottom"`, `"slide left"`, `"slide right"`）、`"gnomed"`、`"fade"`。
 - **ワークスペース遷移スタイル**：`"slide"`, `"slidevert"`, `"fade"`, `"none"`（ヘッドレスキャプチャや画面共有時は自動的にスキップされます）。
 
+### クローズアニメーション
+
+`windows_close`（別名 `windows_out`）と `close_scale_to` は、ウィンドウを閉じる際の内容の動きを制御します。最後にコミットされたフレームは GPU メモリにキャッシュされるため、閉じ始めた時点で枠線・フォーカスリング・ドロップシャドウが消え、キャッシュされた内容だけが `close_scale_to` まで縮小しながらフェードアウトします。
+
+`animations.enabled = false` の場合、またはクローズチャネルが `Instant` カーブ（`"instant"` / `"none"`、もしくは `style = "none"`）に解決される場合はスナップショットを取得せず、ウィンドウは即座に解放されます。
+
 ## グラデーション枠線・ブラー・ウィンドウ別設定
 
 `koma.appearance({...})` で全体の角丸（`corner_radius`）・回転グラデーション枠線・Dual Kawase ブラーを設定し、`koma.rule.window({...})` でアプリごとに調整します。

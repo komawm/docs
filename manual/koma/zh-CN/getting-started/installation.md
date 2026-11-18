@@ -44,7 +44,7 @@ paru -S koma-bin
 
 # 或从源码 PKGBUILD 构建 / 安装已校验的离线包
 paru -S koma
-sudo pacman -U koma-0.0.2-1-x86_64.pkg.tar.zst
+sudo pacman -U koma-0.0.3-1-x86_64.pkg.tar.zst
 ```
 
 `pacman` 会自动解析 `seatd`（或 `systemd-libs`）、`libinput`、`mesa`、`libdisplay-info`、`libxkbcommon`、`wayland`、`pixman` 与 `libglvnd` 等运行时依赖。
@@ -88,11 +88,15 @@ koma completions fish > ~/.config/fish/completions/koma.fish
 git clone https://github.com/komawm/koma.git
 cd koma
 just fmt-check typecheck clippy test
-cargo build --release --locked -p koma -p komactl -p koma-mcp -p koma-overview
+cargo build --release --locked -p koma -p komactl -p koma-overview
 ./target/release/koma --headless-check
 ```
 
 如需运行传统 X11 应用，请另行安装外部无根代理 [`xwayland-satellite`](https://github.com/Supreeeme/xwayland-satellite)。
+
+## 首次运行配置
+
+Koma 依靠内置默认值即可运行，`~/.config/koma/init.lua` 并非必需。若想显式生成模块化起始配置树（`init.lua`、`lua/{input,workspaces,appearance,window_rules,keybinds}.lua` 与 `lua/macros/example.lua`），请运行 `komactl init`；除非传入 `--force`，已有文件不会被修改。生成结构与 `komactl config-status` 的模板报告见 [komactl 与工作区概览](/zh-CN/docs/protocols-and-tools/cli-and-overview/)。
 
 ## 登录会话集成（`greetd` 与 `systemd --user`）
 

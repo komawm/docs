@@ -44,7 +44,7 @@ paru -S koma-bin
 
 # Or build from source PKGBUILD / install downloaded package
 paru -S koma
-sudo pacman -U koma-0.0.2-1-x86_64.pkg.tar.zst
+sudo pacman -U koma-0.0.3-1-x86_64.pkg.tar.zst
 ```
 
 Runtime dependencies resolved by `pacman` include `seatd` (or `systemd-libs`), `libinput`, `mesa`, `libdisplay-info`, `libxkbcommon`, `wayland`, `pixman`, and `libglvnd`.
@@ -88,11 +88,15 @@ Building from [komawm/koma](https://github.com/komawm/koma) requires `cargo` and
 git clone https://github.com/komawm/koma.git
 cd koma
 just fmt-check typecheck clippy test
-cargo build --release --locked -p koma -p komactl -p koma-mcp -p koma-overview
+cargo build --release --locked -p koma -p komactl -p koma-overview
 ./target/release/koma --headless-check
 ```
 
 Optional X11 application support is delegated to external rootless [`xwayland-satellite`](https://github.com/Supreeeme/xwayland-satellite); install `xwayland-satellite` alongside `koma` if you run legacy X11 clients.
+
+## First-Run Configuration
+
+Koma starts with built-in defaults and needs no `~/.config/koma/init.lua`. To create the modular starter tree explicitly (`init.lua`, `lua/{input,workspaces,appearance,window_rules,keybinds}.lua`, and `lua/macros/example.lua`), run `komactl init`; existing files are left untouched unless you pass `--force`. See [komactl & Workspace Overview](/docs/protocols-and-tools/cli-and-overview/) for the generated layout and `komactl config-status` template reporting.
 
 ## Session Integration (`greetd` & `systemd --user`)
 

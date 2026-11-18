@@ -1,6 +1,6 @@
 # レイアウト・外観・init.lua
 
-Koma は `~/.config/koma/init.lua`（または `$XDG_CONFIG_HOME/koma/init.lua`、フォールバックは `/etc/xdg/koma/init.lua`）から設定を読み込みます。環境変数 `KOMA_CONFIG` または `koma -c <path>` で設定ファイルを切り替えられるほか、`~/.config/koma/lua/` 配下に分割したモジュールを `require(...)` で読み込めます。
+Koma は `~/.config/koma/init.lua`（または `$XDG_CONFIG_HOME/koma/init.lua`、フォールバックは `/etc/xdg/koma/init.lua`）から設定を読み込みます。環境変数 `KOMA_CONFIG` または `koma -c <path>` で設定ファイルを切り替えられるほか、`~/.config/koma/lua/` 配下に分割したモジュールを `require(...)` で読み込めます。`komactl init` を実行すると、このモジュール構成の雛形を生成できます（詳細は [komactl とワークスペース概観](/ja/docs/protocols-and-tools/cli-and-overview/)）。
 
 ![Koma 横スクロールレイアウトと Lua 設定のプレビュー](https://cdn.komawm.org/media/koma-scrolling.webp "Scrolling レイアウトのマルチカラム表示とステータスバーの例。")
 
@@ -107,14 +107,17 @@ koma.appearance({
 koma.unbind("Mod + Return")
 koma.bind("Mod + Return", koma.act.spawn({ "foot" }), { desc = "Launch foot" })
 koma.bind("Mod + O", koma.act.overview.toggle(), { desc = "Toggle koma-overview" })
+koma.bind("Mod + Shift + E", koma.act.quit(), { desc = "Exit Koma" })
 ```
+
+組み込みの既定バインドも同じアクション体系で表現されており、`koma.act.reload_config()`、`koma.act.quit()`、`koma.act.window.maximize_toggle()` を利用できます。
 
 | 補助 API | 用途 |
 | :--- | :--- |
 | `koma.env(key, val)` | Koma から起動する子プロセスへ環境変数を渡す |
 | `koma.mode(name, spec)` | `koma.act.mode.enter(name)` / `koma.act.mode.exit()` で切り替えるサブマップモードを定義 |
 | `koma.on(event, fn)` | ライフサイクルイベントの Lua コールバックを登録 |
-| `koma.macro.define(spec)` | パラメータ化マクロを定義し `koma-mcp` に公開 |
+| `koma.macro.define(spec)` | パラメータ化マクロを定義し `koma mcp` に公開 |
 
 ## 環境変数（`koma.env`）
 

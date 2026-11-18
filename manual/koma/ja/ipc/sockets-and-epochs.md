@@ -17,7 +17,7 @@ Koma は `$XDG_RUNTIME_DIR/koma/<signature>/`（ディレクトリ権限 `0700`�
 
 | エラーコード | シンボル | 意味と復旧方法 |
 | :--- | :--- | :--- |
-| **`4090`** | `ERR_STALE_EPOCH` | 観測から実行までの間に状態が変化。操作は入力実行前に安全中断されます（`koma-mcp` は最新の `new_observed_epoch` PNG を添付して返却） |
+| **`4090`** | `ERR_STALE_EPOCH` | 観測から実行までの間に状態が変化。操作は入力実行前に安全中断されます（`koma mcp` は最新の `new_observed_epoch` PNG を添付して返却） |
 | **`4091`** | `ERR_HUMAN_PREEMPTED` | `Mod + G` または物理入力による人間側の優先割り込み。エージェントは停止して制御を譲る必要があります |
 | **`4032`** | `ERR_PROTECTED_SURFACE` | `block_out_from` 指定の保護サーフェスへの操作。入力は遮断され、該当領域は `#000000` でマスクされます |
 
@@ -29,19 +29,19 @@ Koma は `$XDG_RUNTIME_DIR/koma/<signature>/`（ディレクトリ権限 `0700`�
 - **3 段階 `TextInjectStrategy`**：UTF-8 テキスト注入は `xkb_keymap`・`text_input_v3`・`clipboard`（`Ctrl+Shift+V`）を自動選択し、Fcitx5/IBus の変換候補ポップアップを誤作動させません。
 - **シール済み `SCM_RIGHTS` `memfd` / SHM**：`capture.frame` は RGBA8 ピクセルを書き込み禁止シール済みの `memfd`（Linux/FreeBSD）または POSIX 共有メモリ記述子（BSD フォールバック）に書き込み、`SCM_RIGHTS` 経由でファイルディスクリプタを渡すことで JSON への大きな画像コピーを避けます。
 
-## `koma-mcp` stdio サーバー
+## `koma mcp` stdio サーバー
 
-`koma-mcp` は `koma-agent.sock` へ遅延接続し、メッセージ単位で `Content-Length`（LSP 形式）と改行区切り JSON（`NDJSON`）の stdio フレーミングを自動判別します。`Claude Code`・`Codex`・`Cursor`・`OpenCode`・`pi`・[Jiku](/ja/jiku/) 等からそのまま利用できます：
+`koma mcp` は `koma` バイナリのサブコマンドで、独立した `koma-mcp` 実行ファイルは存在しません。`koma-agent.sock` へ遅延接続し、メッセージ単位で `Content-Length`（LSP 形式）と改行区切り JSON（`NDJSON`）の stdio フレーミングを自動判別します。`Claude Code`・`Codex`・`Cursor`・`OpenCode`・`pi`・[Jiku](/ja/jiku/) 等からそのまま利用できます：
 
 ```bash
 # 組み込み MCP ツールスキーマをオフライン表示
-koma-mcp --print-tools
+koma mcp --print-tools
 
 # 明示トークンを指定して起動
-KOMA_CAPABILITY_TOKEN=koma_cap_... koma-mcp
+KOMA_CAPABILITY_TOKEN=koma_cap_... koma mcp
 
 # ローカル開発向けモード（koma-admin.sock から自動でトークン発行）
-koma-mcp --auto-mint-admin
+koma mcp --auto-mint-admin
 ```
 
-組み込み `koma-mcp` は 17 個のコアツール（`koma_ping`、`koma_scene_inventory`、`koma_ws_create`、`koma_capture_frame`、`koma_click`、`koma_drag`、`koma_key`、`koma_inject_text`、`koma_paste_mime`、`koma_win_activate`、`koma_exec_macro`、`koma_path`、`koma_cursor_settle`、`koma_wheel`、`koma_relative_move`、`koma_hit_test`、`koma_cursor_label`）と、`~/.config/koma/init.lua` の `koma.macro.define(...)` で登録された `macro__<id>` ツールを公開します。
+組み込み `koma mcp` は 17 個のコアツール（`koma_ping`、`koma_scene_inventory`、`koma_ws_create`、`koma_capture_frame`、`koma_click`、`koma_drag`、`koma_key`、`koma_inject_text`、`koma_paste_mime`、`koma_win_activate`、`koma_exec_macro`、`koma_path`、`koma_cursor_settle`、`koma_wheel`、`koma_relative_move`、`koma_hit_test`、`koma_cursor_label`）と、`~/.config/koma/init.lua` の `koma.macro.define(...)` で登録された `macro__<id>` ツールを公開します。

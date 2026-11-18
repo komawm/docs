@@ -89,6 +89,8 @@ koma.input({
 
 对于无独立物理按键的 Clickpad / Force Touch 触控板，若未在全局或单设备配置中显式指定，Koma 默认启用 `click_method = "clickfinger"` 与 `disable_while_typing = true`。
 
+`pointer.follow_mouse` 对应 Hyprland 的 `input:follow_mouse` 取值：`"off"`（`0`）仅在点击时聚焦，`"normal"`（`1`，默认）聚焦光标下的窗口并在其工作区内提升到最前，`"focus_only"`（`2`）只赋予键盘焦点而不提升窗口。未知值会回退为 `"normal"`。光标经过间隙或 layer-shell 表面时不会改变焦点。
+
 ## 单设备覆盖配置（`koma.device`）
 
 使用 `koma.device({...})` 按设备名单独覆盖 `libinput` 参数或输出屏幕映射：

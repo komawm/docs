@@ -13,7 +13,7 @@
 2. **Per-Workspace Layouts & Visual Effects**: Choose `"dwindle"` (default on headed workspaces), `"scrolling"` (horizontal column strip), `"deck"` (monocle viewport with background stash), or `"bsp"` per workspace, with Dual-Kawase blur, rounded corners, drop shadows, focus rings, and spring animations.
 3. **Human-First Preemption (`< 1 ms`)**: Any physical keyboard or pointer input—or pressing `Mod + G`—immediately revokes active automation leases and rejects stale IPC writes via monotonic `Epoch` counters (`4091 ERR_HUMAN_PREEMPTED`).
 4. **Built-In Sandboxing & Scoped IPC**: Separates full administrator control (`koma-admin.sock`) from token-scoped automation (`koma-agent.sock`), and supports isolated workspaces via `komactl sandbox` (`bwrap` / rootless `podman`) and `wp_security_context_manager_v1`.
-5. **High-Precision Agent Pointer & 17-Tool MCP**: Drives `250 Hz` multi-waypoint `vseat.path` / `vseat.stroke` splines with Smithay `ClickGrab` drag delivery, a GLES2 SDF agent cursor + `LabelPill` indicator (`label_enabled`), `DeliverySemantics` error reporting, and lazy-connect dual-framing (`Content-Length` + NDJSON) `koma-mcp`.
+5. **High-Precision Agent Pointer & 17-Tool MCP**: Drives `250 Hz` multi-waypoint `vseat.path` / `vseat.stroke` splines with Smithay `ClickGrab` drag delivery, a GLES2 SDF agent cursor + `LabelPill` indicator (`label_enabled`), `DeliverySemantics` error reporting, and lazy-connect dual-framing (`Content-Length` + (NDJSON) `koma mcp`.
 
 ## Documentation Map
 
@@ -33,7 +33,7 @@ Build and verify the compositor binaries without disturbing your running desktop
 ```bash
 git clone https://github.com/komawm/koma.git
 cd koma
-cargo build --release --locked -p koma -p komactl -p koma-mcp -p koma-overview
+cargo build --release --locked -p koma -p komactl -p koma-overview
 ./target/release/koma --headless-check
 ./target/release/komactl gen-types > /tmp/koma-types-check.lua
 ```

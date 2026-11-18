@@ -27,6 +27,7 @@ Koma の起動・シート権限・描画・Lua 設定・IPC ソケット・日�
   ```
 - `komactl reload` は隔離サンドボックス内で事前にスクリプトを評価するため、構文エラー・不正な正規表現・無限ループがあっても稼働中のキーバインドやレイアウトは維持され、`komactl config-status` でエラー内容を確認できます。
 - 起動自体が失敗する場合は `koma -c /dev/null` を実行する（または `~/.config/koma/init.lua` を退避する）と組み込みデフォルト設定で起動できます。
+- 雛形を再生成するには `komactl init` を実行します（既存ツリーを置き換える場合は `--force`）。`komactl config-status` でオンディスクのテンプレートが古いか欠落しているかを確認できます。
 
 ## 4. `komactl` が `koma-admin.sock` を見つけられない
 
@@ -36,6 +37,7 @@ Koma の起動・シート権限・描画・Lua 設定・IPC ソケット・日�
   ls -la "$XDG_RUNTIME_DIR/koma/"
   ```
 - 複数インスタンスを起動している場合は、`komactl` 実行前に `export KOMA_INSTANCE_SIGNATURE=<ディレクトリ名>` を設定してください。
+- 外部ターミナルからは `koma init fish | source`（または `eval "$(koma init bash)"`）で稼働中インスタンスの環境変数を読み込めます。XWayland 稼働中は `DISPLAY` も含まれます。ケイパビリティトークンは出力されず、インスタンスが 0 個または複数ある場合は明確なエラーで停止します。
 
 ## 5. Chromium / Electron で `Fcitx5` / `IBus` が動作しない
 
