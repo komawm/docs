@@ -42,7 +42,7 @@ koma.monitor({
 
 ## キーボード・ポインタ・タッチパッド・タブレット（`koma.input`）
 
-キーボードリピートの既定値は `repeat_delay = 220` ms、`repeat_rate = 35` Hz です（`repeat_delay_ms` / `repeat_rate_hz` エイリアスも利用可能）。`mod_key = "auto"`（既定）は `--tty` で `Super`、`--winit` ネスト実行で `Alt` を自動選択します。明示指定には `"Super"`・`"Alt"`・`"Ctrl"`・`"Shift"`・`"Mod5"` を使用できます。
+キーボードリピートの既定値は `repeat_delay = 600` ms、`repeat_rate = 25` Hz です（`repeat_delay_ms` / `repeat_rate_hz` エイリアスも利用可能）。長押しでリピートするキーバインドも同じ間隔を使います。`mod_key = "auto"`（既定）は `--tty` で `Super`、`--winit` ネスト実行で `Alt` を自動選択します。明示指定には `"Super"`・`"Alt"`・`"Ctrl"`・`"Shift"`・`"Mod5"` を使用できます。
 
 ```lua
 koma.input({
@@ -88,6 +88,8 @@ koma.input({
 ```
 
 独立した物理ボタンを持たないクリックパッド（Apple Force Touch トラックパッド等）では、明示的な上書きがない限り `click_method = "clickfinger"` と `disable_while_typing = true` が既定で有効になります。
+
+`keyboard.options` は任意の XKB オプション名を受け付けます。Hyprland が `kb_options` で受け付ける名前と同一で、`caps:escape`、`caps:ctrl_modifier`、`ctrl:nocaps`、`altwin:swap_lalt_lwin`、`compose:caps`、`grp:alt_shift_toggle` などを指定できます。適用された文字列は `komactl config-status` の `input.keyboard.options` で確認できるため、設定ファイルを開き直さずにリマップを検証できます。
 
 `pointer.follow_mouse` は Hyprland の `input:follow_mouse` 値に対応します。`"off"`（`0`）はクリック時のみフォーカスし、`"normal"`（`1`、既定）はカーソル下のウィンドウへフォーカスしてワークスペース内で最前面へ持ち上げ、`"focus_only"`（`2`）は持ち上げずにキーボードフォーカスだけを与えます。未知の値は `"normal"` にフォールバックします。ギャップやレイヤーシェル表面上の移動ではフォーカスは変わりません。
 

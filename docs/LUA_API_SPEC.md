@@ -133,6 +133,8 @@ koma.workspace({
 
 ```
 
+`persistent = true` opts one workspace out of bar hiding: Koma reports empty workspaces as `hidden` in `ext-workspace-v1`, so a bar with `ignore-hidden: true` lists only the workspaces in use unless the workspace is marked persistent (see `IPC_SPEC.md` §5.7). It is applied on creation and on config reload.
+
 ### 2.3 Input Devices & Visual Appearance (`koma.input`, `koma.device`, `koma.appearance`)
 
 By default (`inherit_default_binds = true` on `koma.input({...})`), `Koma` loads the built-in Hyprland-compatible default keybinding table (`Mod + Return`, `Mod + Q`, `Mod + M`, `Mod + V`, `Mod + F`, `Mod + P`, `Mod + E`, `Mod + S`, `Mod + H/J/K/L`, `Mod + Shift + H/J/K/L`, `Mod + 1..9`, `Mod + Shift + 1..9`, `Mod + MouseLeft/Right`, `Mod + WheelScrollDown/Up`). User `koma.bind(...)` calls merge into this table—overriding matching chords in-place without wiping other default keybinds—and `koma.unbind(chord)` removes specific default chords selectively. Setting `inherit_default_binds = false` starts from an empty user keybinding table (while preserving Ring 0 rescue chords `Mod + G` and `Ctrl + Alt + F1..F12`).
@@ -147,8 +149,8 @@ koma.input({
         layout = "us",
         variant = "",
         options = "caps:escape",
-        repeat_delay_ms = 220,
-        repeat_rate_hz = 35,
+        repeat_delay_ms = 600,
+        repeat_rate_hz = 25,
         numlock_on_startup = true,
     },
     pointer = {

@@ -29,9 +29,23 @@ Koma advertises [`ext-workspace-v1`](https://wayland.app/protocols/ext-workspace
 | `name` | The configured workspace name (`1`, `chat`, `special:magic`) |
 | `coordinates` | Unique 1D index in strip order: numeric names first by value, then the named ones |
 | `capabilities` | `activate` only |
-| `state` | `active` while the workspace is displayed (assigned to an output, the open `special:` overlay, or `active_ws_id`); no state bits for an ordinary inactive workspace; `hidden` only for workspaces that have no on-screen representation at all (headless/`agent:` workspaces) |
+| `state` | `active` while the workspace is displayed (assigned to an output, the open `special:` overlay, or `active_ws_id`); `hidden` when it has no windows, or is headless/`agent:`; no state bits when it is occupied but not displayed |
 
 Property events are delta-only and every batch ends with `done`, so cache what you received instead of re-deriving state from a single event. `workspace.activate` is a request: it takes effect when that manager sends `commit`, and a series of activations before one `commit` is applied as a single batch with the last request winning, so an intermediate workspace never flashes or fires `workspace.focused`. The switch itself runs through the same path as `Mod + 1..0`, and a pending request is dropped when the manager sends `stop` or disconnects. A commit is ignored while the session is locked.
+
+### Workspace Visibility for Bars
+
+The protocol has no "occupied" state, so Koma derives visibility itself: a workspace is `active` when it is displayed, `hidden` when it holds no windows (or is headless/`agent:`), and carries **no** state bits when it is occupied but not displayed. Occupied means at least one non-minimized mapped window; a stashed or Deck-background window counts, because hiding its workspace would remove the only bar entry that can bring it back, while a minimized window does not count.
+
+The default keeps bar noise down: a bar with `ignore-hidden: true` shows only the workspaces in use instead of ten empty slots. Empty workspaces stay reachable with `Mod + 1..9`; they simply do not occupy a bar slot. The protocol defines `hidden` as "the workspace is not visible in its workspace group, and clients attempting to visualize the compositor workspace state should not display such workspaces", which is exactly the meaning Koma applies.
+
+To keep one empty workspace listed, opt out per workspace:
+
+```lua
+koma.workspace({ name = "5", persistent = true })
+```
+
+`persistent = true` is applied on creation and on config reload, and a displayed workspace is still `active` first.
 
 ### Waybar `ext/workspaces`
 
@@ -67,7 +81,7 @@ Property events are delta-only and every batch ends with `done`, so cache what y
 }
 ```
 
-`ignore-hidden: true` is safe and preferred: the protocol defines `hidden` as "the workspace is not visible in its workspace group, and clients attempting to visualize the compositor workspace state should not display such workspaces", and Koma only sets it for workspaces with no on-screen representation. Ordinary inactive workspaces carry **no** state bits, so they stay clickable. `icon` / `format-icons` work (`active` and `default` are the keys this module matches, and workspace-name keys match too), but `urgent` never fires, because Koma has no window-urgency notion and therefore no urgent workspace. Keep `"sort-by-name": true`: `"sort-by-id": true` would order by the door id (`ws_01`, `ws_02`, …), which only looks right while ids happen to follow creation order. A bar wired with `"on-click-right": "close"` or `"deactivate"` simply does nothing — Koma advertises `activate` alone.
+`ignore-hidden: true` is safe and preferred: Koma sets `hidden` exactly as the protocol defines it, so an empty workspace disappears from the bar and a workspace that still holds a window stays listed. Keep an empty workspace visible with `persistent = true` (see above). `icon` / `format-icons` work (`active` and `default` are the keys this module matches, and workspace-name keys match too), but `urgent` never fires, because Koma has no window-urgency notion and therefore no urgent workspace. Keep `"sort-by-name": true`: `"sort-by-id": true` would order by the door id (`ws_01`, `ws_02`, …), which only looks right while ids happen to follow creation order. A bar wired with `"on-click-right": "close"` or `"deactivate"` simply does nothing — Koma advertises `activate` alone.
 
 ## Screencopy & `xdg-desktop-portal`
 

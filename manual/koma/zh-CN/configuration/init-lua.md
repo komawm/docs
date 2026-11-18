@@ -119,6 +119,27 @@ koma.bind("Mod + Shift + E", koma.act.quit(), { desc = "Exit Koma" })
 | `koma.on(event, fn)` | 注册生命周期事件回调 |
 | `koma.macro.define(spec)` | 定义参数化 GUI 宏并暴露给 `koma mcp` |
 
+### 快捷键总览浮层
+
+`Mod + Shift + Slash` 会执行 `koma.act.overlay.keybinds_toggle()`。总览由合成器自身绘制，因此即使没有安装启动器，纯净会话中也能使用。按 `Escape`、再按同一组合键或单击即可关闭；浮层打开期间会独占键盘与鼠标按键，并且在会话锁定或放弃状态下拒绝打开（重载配置时也会关闭）。
+
+面板按目录分类分组，展示实际生效的键位表，因此用 `koma.bind` 覆盖的组合键、用 `koma.unbind` 删除的默认绑定都已反映在内。面板的行与 `komactl keys` 使用同一份合并结果，二者不会出现分歧；每一行的来源（`builtin` 或 `config:<file>`）与 Lua 表达式可在 CLI 中查看。输出较窄时面板会折成多列，最后一列以精确的 `+N more` 结尾，而不是静默丢弃绑定。
+
+### 按住重复
+
+移动、缩放、预设与循环类动作会在按住组合键期间持续触发，节奏与文本重复一致（`repeat_delay` / `repeat_rate`，默认延迟 `600` ms、频率 `25` Hz）。重复类别由动作决定，而不是由组合键决定：方向聚焦、窗口移动／交换、方向缩放、Dwindle 分割比例拖拽、滚动列与预设循环、工作区前后切换、Deck 循环、显示器聚焦／移动／交换都会重复。启动、关闭、退出、重载、暂存区、并入／拆出以及各类开关只执行一次。
+
+可以按绑定覆盖该分类：
+
+```lua
+koma.bind("Mod + D", koma.act.focus.left())                                  -- 会重复（方向聚焦）
+koma.bind("Mod + D", koma.act.window.close(), { repeat_while_held = false }) -- 不重复
+```
+
+`repeat` 是 Lua 保留字，因此直接写法是 `repeat_while_held`；`["repeat"] = false` 同样有效，并且是 JSON/IPC 使用的字段名。显式取值优先于动作自身的分类。待执行的重复会在以下情况取消：松开按键、改变修饰键、指针操作导致焦点变化、外部切换工作区、合成器移动／缩放或边框拖拽、客户端拖拽、会话锁定、重载配置。
+
+`pass_through` 绑定不会在合成器侧重复：获得焦点的客户端会依据同一份 `wl_keyboard.repeat_info` 重复转发的按键，因此每个按住的组合键始终只有一层在执行。`komactl keys` 会在重复的行上标记 `[repeat]`，`komactl keys --json` 则带有 `"repeat": bool`。
+
 ## 环境变量（`koma.env`）
 
 `koma.env(key, val)` 登记一个变量，Koma 会把它应用到**自己启动的每一个子进程**：快捷键的 `spawn`/`exec` 动作、事件回调里的 `ctx:spawn(...)`，以及宏执行。它不会改变合成器自身的环境——那在进程启动时就已经确定。

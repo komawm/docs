@@ -9,8 +9,10 @@
 | Command | Mode | Description |
 | :--- | :--- | :--- |
 | `komactl validate [path/to/init.lua]` | Offline | Evaluates `init.lua` in the isolated Lua sandbox, validates rule regexes & gestures, and prints resource counts |
+| `komactl doctor [path/to/init.lua] [--json] [--strict]` | Offline | Runs every non-destructive configuration check grouped by area and reports `ok` / `warn` / `error` / `skip`; `error` never changes the exit code |
+| `komactl keys [path/to/init.lua] [--json] [--grep <pattern>]` | Offline (live read-only when reachable) | Lists the effective keymap: built-in catalogue merged with `init.lua`, plus pointer binds and gestures; repeating rows carry `[repeat]` |
 | `komactl reload [path/to/init.lua]` | IPC (`admin.sock`) | Sends `config.reload` and atomically swaps live compositor configuration |
-| `komactl config-status` | IPC (`admin.sock`) + offline | Prints active config path, reload generation, last error if any (`config.status`), the effective `input.pointer` / `input.touchpad` knobs, plus `template.{init_lua,present,installed_version,shipped_version,outdated,missing_files}` for the generated scaffold |
+| `komactl config-status` | IPC (`admin.sock`) + offline | Prints active config path, reload generation, last error if any (`config.status`), the effective `input.keyboard`, `input.pointer` and `input.touchpad` knobs, plus `template.{init_lua,present,installed_version,shipped_version,outdated,missing_files}` for the generated scaffold |
 | `komactl init [dir] [--force]` | Offline | Scaffolds `init.lua`, `lua/{input,workspaces,appearance,window_rules,keybinds}.lua`, and `lua/macros/example.lua`; refuses to overwrite existing files unless `--force` is given |
 | `komactl gen-types` | Offline | Emits deterministic `LuaCATS` stubs for `koma-types` (`types/koma.lua`) |
 | `komactl inventory` | IPC (`admin.sock`) | Prints live monitors, workspaces, `Epoch` counters, Deck windows, and Stash slots (`scene.inventory`); exactly one workspace carries `"focused": true` |
@@ -43,6 +45,29 @@ Two further `template` fields disambiguate the cases the version comparison cann
 ## Effective Input in `komactl config-status`
 
 The same report embeds the compositor's `config.status`, whose `input.pointer` and `input.touchpad` blocks list the values Koma actually applies: `accel_speed`, `accel_profile`, `natural_scroll`, `scroll_factor`, `follow_mouse`, plus `tap_to_click` and `disable_while_typing` for touchpads. A `null` means the key was never written in `init.lua`, so libinput's built-in default applies; `accel_profile` is either `"adaptive"` (the default curve) or `"flat"` (no acceleration). When the pointer travels a different distance than in another compositor at the same physical movement, compare `accel_speed` and `accel_profile` first — an unset profile explains most of the difference.
+
+### XKB Keyboard Map in `config.status`
+
+The same `input` object now carries `input.keyboard`: `layout`, `variant`, `model`, `options`, `repeat_delay_ms`, and `repeat_rate_hz`. A `null` again means "not configured", so the XKB/libinput default applies; `options` is the raw XKB option string, which makes a remap verifiable without reading `init.lua`. These are the same values that drive text repeat and hold-to-repeat keybinds.
+
+`options` uses XKB names, exactly the ones Hyprland accepts in `kb_options`, and anything `setxkbmap -option` accepts works:
+
+| Option | Effect |
+| :--- | :--- |
+| `caps:escape` | Caps Lock acts as Escape |
+| `caps:ctrl_modifier` | Caps Lock becomes an extra Ctrl |
+| `ctrl:nocaps` | Caps Lock is mapped to Ctrl |
+| `altwin:swap_lalt_lwin` | Swap Left Alt and Left Super |
+| `compose:caps` | Caps Lock becomes the Compose key |
+| `grp:alt_shift_toggle` | Alt + Shift switches the keyboard layout group |
+
+## Configuration Diagnostics (`komactl doctor` & `komactl keys`)
+
+Both commands reuse the same jailed shadow-VM evaluation as `komactl validate`, so they work offline and never need a seat. `komactl doctor` groups its checks into `config`, `template`, `binds`, `monitors`, `workspaces`, `rules`, and `environment`, and every row carries a severity: `ok` (the check ran and found nothing), `warn` (loads fine, probably not what was intended), `error` (would be rejected on the next reload), or `skip` (cannot run here, such as no DRM or no live compositor).
+
+`error` never changes the exit code, because the compositor keeps running on its last valid configuration and a broken config must not brick the session. `--strict` exits `1` on any warn or error; `2` is reserved for a configuration that cannot be read at all, a usage error, or an internal failure. `--json` emits one document with the counts and every per-check row.
+
+`komactl keys` prints the effective map: the built-in catalogue merged with `input.inherit_default_binds`, `koma.unbind`, and chord overrides, plus pointer binds and gestures in their own sections. Every row shows the chord, action, Lua expression, source (`builtin` or `config:<file>`), and description; an override keeps the built-in description in parentheses so the original stays visible. `--grep <pattern>` filters rows case-insensitively, and `--json` emits `{catalogue, keyboard, pointer, gestures, total, overridden_builtins}`. Nothing is hidden: a bind the compositor cannot translate back into a catalogue entry is printed with its raw action descriptor. The listing is offline by default; when a live `koma-admin.sock` is reachable, the header and the JSON `live` object merge the running generation, active configuration path, and lock state, read-only.
 
 ## `komactl sandbox` Container Isolation
 

@@ -9,8 +9,10 @@
 | 子命令 | 运行模式 | 功能说明 |
 | :--- | :--- | :--- |
 | `komactl validate [path/to/init.lua]` | 离线 | 在隔离 Lua 沙箱中求值 `init.lua`，校验规则正则与手势并输出统计 |
+| `komactl doctor [path/to/init.lua] [--json] [--strict]` | 离线 | 按领域运行全部非破坏性配置检查，报告 `ok` / `warn` / `error` / `skip`；`error` 不会改变退出码 |
+| `komactl keys [path/to/init.lua] [--json] [--grep <pattern>]` | 离线（可连接时只读并入运行状态） | 列出实际生效的键位表：内置目录与 `init.lua` 合并，另含指针绑定与手势；会重复的行带 `[repeat]` |
 | `komactl reload [path/to/init.lua]` | IPC（`admin.sock`） | 调用 `config.reload` 原子热重载合成器配置 |
-| `komactl config-status` | IPC（`admin.sock`）+ 离线 | 查看当前配置路径、重载代数与最近报错（`config.status`）、实际生效的 `input.pointer` / `input.touchpad` 参数，并报告生成模板的 `template.{init_lua,present,installed_version,shipped_version,outdated,missing_files}` |
+| `komactl config-status` | IPC（`admin.sock`）+ 离线 | 查看当前配置路径、重载代数与最近报错（`config.status`）、实际生效的 `input.keyboard` / `input.pointer` / `input.touchpad` 参数，并报告生成模板的 `template.{init_lua,present,installed_version,shipped_version,outdated,missing_files}` |
 | `komactl init [dir] [--force]` | 离线 | 生成 `init.lua`、`lua/{input,workspaces,appearance,window_rules,keybinds}.lua` 与 `lua/macros/example.lua`；除非传入 `--force`，否则拒绝覆盖已有文件 |
 | `komactl gen-types` | 离线 | 确定性输出供 `koma-types`（`types/koma.lua`）使用的 `LuaCATS` 存根 |
 | `komactl inventory` | IPC（`admin.sock`） | 导出显示器、工作区、`Epoch` 计数、Deck 活跃窗与 Stash 列表（`scene.inventory`）；恰好一个工作区带 `"focused": true` |
@@ -43,6 +45,29 @@ lua/macros/example.lua
 ## `komactl config-status` 报告的实际输入参数
 
 同一份报告内嵌合成器的 `config.status`，其中的 `input.pointer` 与 `input.touchpad` 块列出 Koma 真正应用的取值：`accel_speed`、`accel_profile`、`natural_scroll`、`scroll_factor`、`follow_mouse`，触控板另有 `tap_to_click` 与 `disable_while_typing`。`null` 表示该项从未写入 `init.lua`，此时生效的是 libinput 内置默认值；`accel_profile` 只可能是 `"adaptive"`（默认曲线）或 `"flat"`（完全关闭加速）。当相同物理位移下指针移动距离与其他合成器不同，请先比较 `accel_speed` 与 `accel_profile`——未设置 profile 通常就能解释大部分差异。
+
+### `config.status` 中的 XKB 键盘映射
+
+同一个 `input` 对象新增了 `input.keyboard`：`layout`、`variant`、`model`、`options`、`repeat_delay_ms`、`repeat_rate_hz`。`null` 依然表示“未配置”，此时应用 XKB／libinput 的默认值；`options` 是原始 XKB 选项字符串，无需重开 `init.lua` 就能验证改键是否生效。这些值同时驱动文本重复与按住重复的节奏。
+
+`options` 使用 XKB 名称，与 Hyprland `kb_options` 接受的名称完全一致；凡是 `setxkbmap -option` 接受的写法都可用：
+
+| 选项 | 作用 |
+| :--- | :--- |
+| `caps:escape` | Caps Lock 作为 Escape |
+| `caps:ctrl_modifier` | Caps Lock 作为额外的 Ctrl |
+| `ctrl:nocaps` | 将 Caps Lock 映射为 Ctrl |
+| `altwin:swap_lalt_lwin` | 交换左 Alt 与左 Super |
+| `compose:caps` | Caps Lock 作为 Compose 键 |
+| `grp:alt_shift_toggle` | Alt + Shift 切换键盘布局组 |
+
+## 配置诊断（`komactl doctor` 与 `komactl keys`）
+
+两个命令都复用 `komactl validate` 的隔离影子虚拟机求值，因此可离线运行，无需 seat。`komactl doctor` 将检查分为 `config`、`template`、`binds`、`monitors`、`workspaces`、`rules`、`environment` 七组，每行带有严重级别：`ok`（已运行且未发现问题）、`warn`（可以加载，但很可能不是本意）、`error`（下次重载会被拒绝）、`skip`（当前环境无法运行，例如没有 DRM 或没有运行中的合成器）。
+
+`error` 不会改变退出码，因为合成器会继续使用最后一份有效配置，配置错误不应让会话瘫痪。`--strict` 在出现任何 warn 或 error 时以 `1` 退出；`2` 保留给完全无法读取配置、用法错误或内部故障。`--json` 输出包含计数与全部检查行的单个文档。
+
+`komactl keys` 输出实际生效的键位表：内置目录与 `input.inherit_default_binds`、`koma.unbind`、组合键覆盖合并，指针绑定与手势单独成节。每一行显示组合键、动作、Lua 表达式、来源（`builtin` 或 `config:<file>`）与说明；覆盖内置绑定时，原说明会以括号保留。`--grep <pattern>` 按不区分大小写过滤，`--json` 输出 `{catalogue, keyboard, pointer, gestures, total, overridden_builtins}`。列表不会隐藏任何内容：无法映射回目录条目的绑定会连同原始动作描述一起打印。默认离线运行；若能连到运行中的 `koma-admin.sock`，头部与 JSON 的 `live` 对象会以只读方式并入运行代次、当前配置路径与锁屏状态。
 
 ## `komactl sandbox` 容器级 Wayland 隔离
 
