@@ -29,7 +29,7 @@ Koma 将 [`ext-workspace-v1`](https://wayland.app/protocols/ext-workspace-v1)（
 | `name` | 你配置的工作区名（`1`、`chat`、`special:magic`） |
 | `coordinates` | 条带顺序中唯一的 1 维索引：数字名先按数值排序，其后是命名工作区 |
 | `capabilities` | 仅 `activate` |
-| `state` | 工作区处于显示状态（已分配到输出、正在打开的 `special:` 浮层，或为 `active_ws_id`）时为 `active`，其余为 `hidden`；不会同时为两者，也不会两者皆无 |
+| `state` | 工作区处于显示状态（已分配到输出、正在打开的 `special:` 浮层，或为 `active_ws_id`）时为 `active`；普通非活动工作区不带任何状态位；只有完全没有屏幕表示的工作区（无头／`agent:`）才为 `hidden` |
 
 属性事件仅发送增量，每个批次以 `done` 结束，因此请缓存已收到的值，不要凭单个事件重建状态。`workspace.activate` 走与 `Mod + 1..0` 相同的切换路径，锁屏期间会被忽略。
 
@@ -66,7 +66,7 @@ Koma 将 [`ext-workspace-v1`](https://wayland.app/protocols/ext-workspace-v1)（
 }
 ```
 
-`icon` / `format-icons` 可用（该模块只匹配 `active` 与 `default` 键，工作区名键同样生效），但 `urgent` 永远不会触发：Koma 没有窗口紧急度概念，因此不存在紧急工作区。请保留 `"sort-by-name": true`；使用 `"sort-by-id": true` 会按门牌 ID（`ws_01`、`ws_02`…）排序，只有 ID 恰好与创建顺序一致时才看起来正确。配置 `"on-click-right": "close"` 或 `"deactivate"` 不会有任何效果——Koma 只公开 `activate`。
+`ignore-hidden: true` 是安全且推荐的配置：协议将 `hidden` 定义为“该工作区在工作区分组中不可见，尝试可视化合成器工作区状态的客户端不应显示这类工作区”，而 Koma 只对完全没有屏幕表示的工作区设置它。普通非活动工作区不带任何状态位，因此仍然可以点击。`icon` / `format-icons` 可用（该模块只匹配 `active` 与 `default` 键，工作区名键同样生效），但 `urgent` 永远不会触发：Koma 没有窗口紧急度概念，因此不存在紧急工作区。请保留 `"sort-by-name": true`；使用 `"sort-by-id": true` 会按门牌 ID（`ws_01`、`ws_02`…）排序，只有 ID 恰好与创建顺序一致时才看起来正确。配置 `"on-click-right": "close"` 或 `"deactivate"` 不会有任何效果——Koma 只公开 `activate`。
 
 ## 截屏与 `xdg-desktop-portal`
 

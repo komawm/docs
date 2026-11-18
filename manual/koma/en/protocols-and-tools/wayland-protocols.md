@@ -29,7 +29,7 @@ Koma advertises [`ext-workspace-v1`](https://wayland.app/protocols/ext-workspace
 | `name` | The configured workspace name (`1`, `chat`, `special:magic`) |
 | `coordinates` | Unique 1D index in strip order: numeric names first by value, then the named ones |
 | `capabilities` | `activate` only |
-| `state` | `active` while the workspace is displayed (assigned to an output, the open `special:` overlay, or `active_ws_id`), otherwise `hidden` — never both, never neither |
+| `state` | `active` while the workspace is displayed (assigned to an output, the open `special:` overlay, or `active_ws_id`); no state bits for an ordinary inactive workspace; `hidden` only for workspaces that have no on-screen representation at all (headless/`agent:` workspaces) |
 
 Property events are delta-only and every batch ends with `done`, so cache what you received instead of re-deriving state from a single event. `workspace.activate` runs through the same switch path as `Mod + 1..0`, and it is ignored while the session is locked.
 
@@ -62,11 +62,12 @@ Property events are delta-only and every batch ends with `done`, so cache what y
   color: #16161e;
 }
 #workspaces button.hidden {
+  /* Only matches workspaces Koma deliberately leaves off-screen. */
   opacity: 0.55;
 }
 ```
 
-`icon` / `format-icons` work (`active` and `default` are the keys this module matches, and workspace-name keys match too), but `urgent` never fires, because Koma has no window-urgency notion and therefore no urgent workspace. Keep `"sort-by-name": true`: `"sort-by-id": true` would order by the door id (`ws_01`, `ws_02`, …), which only looks right while ids happen to follow creation order. A bar wired with `"on-click-right": "close"` or `"deactivate"` simply does nothing — Koma advertises `activate` alone.
+`ignore-hidden: true` is safe and preferred: the protocol defines `hidden` as "the workspace is not visible in its workspace group, and clients attempting to visualize the compositor workspace state should not display such workspaces", and Koma only sets it for workspaces with no on-screen representation. Ordinary inactive workspaces carry **no** state bits, so they stay clickable. `icon` / `format-icons` work (`active` and `default` are the keys this module matches, and workspace-name keys match too), but `urgent` never fires, because Koma has no window-urgency notion and therefore no urgent workspace. Keep `"sort-by-name": true`: `"sort-by-id": true` would order by the door id (`ws_01`, `ws_02`, …), which only looks right while ids happen to follow creation order. A bar wired with `"on-click-right": "close"` or `"deactivate"` simply does nothing — Koma advertises `activate` alone.
 
 ## Screencopy & `xdg-desktop-portal`
 

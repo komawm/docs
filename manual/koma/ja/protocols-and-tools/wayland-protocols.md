@@ -29,7 +29,7 @@ Koma は [`ext-workspace-v1`](https://wayland.app/protocols/ext-workspace-v1)（
 | `name` | 設定したワークスペース名（`1`、`chat`、`special:magic`） |
 | `coordinates` | ストリップ順の一意な 1 次元インデックス。数値名を値順に先頭へ、その後ろに名前付きワークスペース |
 | `capabilities` | `activate` のみ |
-| `state` | 表示中（出力に割り当て済み、開いている `special:` オーバーレイ、または `active_ws_id`）なら `active`、それ以外は `hidden`。両方になることも、どちらでもないこともない |
+| `state` | 表示中（出力に割り当て済み、開いている `special:` オーバーレイ、または `active_ws_id`）なら `active`。通常の非表示ワークスペースには状態ビットを付けない。`hidden` は画面上に表現を持たないワークスペース（ヘッドレス／`agent:`）だけに付く |
 
 プロパティイベントは差分のみで、各バッチは `done` で終わります。単一イベントから状態を組み立て直さず、受信した値をキャッシュしてください。`workspace.activate` は `Mod + 1..0` と同じ切り替え経路を通り、セッションロック中は無視されます。
 
@@ -66,7 +66,7 @@ Koma は [`ext-workspace-v1`](https://wayland.app/protocols/ext-workspace-v1)（
 }
 ```
 
-`icon` / `format-icons` は機能します（このモジュールが照合するキーは `active` と `default` で、ワークスペース名のキーも一致します）が、`urgent` は決して発火しません。Koma にはウィンドウの緊急度という概念がないため、緊急ワークスペースは存在しません。`"sort-by-name": true` を維持してください。`"sort-by-id": true` はドア ID（`ws_01`、`ws_02`…）順になるため、ID が作成順と一致している間だけ正しく見えます。`"on-click-right": "close"` や `"deactivate"` を設定しても何も起こりません。Koma が公開するのは `activate` だけです。
+`ignore-hidden: true` は安全であり推奨です。プロトコルは `hidden` を「ワークスペースグループ内で可視でなく、コンポジタのワークスペース状態を可視化しようとするクライアントはそのようなワークスペースを表示すべきでない」と定義しており、Koma は画面上に表現を持たないワークスペースにのみ設定します。通常の非アクティブなワークスペースには状態ビットが付かないため、クリック可能なままです。`icon` / `format-icons` は機能します（このモジュールが照合するキーは `active` と `default` で、ワークスペース名のキーも一致します）が、`urgent` は決して発火しません。Koma にはウィンドウの緊急度という概念がないため、緊急ワークスペースは存在しません。`"sort-by-name": true` を維持してください。`"sort-by-id": true` はドア ID（`ws_01`、`ws_02`…）順になるため、ID が作成順と一致している間だけ正しく見えます。`"on-click-right": "close"` や `"deactivate"` を設定しても何も起こりません。Koma が公開するのは `activate` だけです。
 
 ## スクリーンコピーと `xdg-desktop-portal`
 
