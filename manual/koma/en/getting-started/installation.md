@@ -58,6 +58,13 @@ Runtime dependencies resolved by `pacman` include `seatd` (or `systemd-libs`), `
   curl -fsSLO https://cdn.komawm.org/install/koma/koma.rb
   brew install --formula ./koma.rb
   ```
+- **NixOS / Flakes & Binary Cache (`komawm.cachix.org`)**: Add `github:komawm/koma` to your flake inputs and enable `koma.nixosModules.koma`. The upstream `flake.nix` declares `nixConfig` (`extra-substituters = [ "https://komawm.cachix.org" ]`, `extra-trusted-public-keys = [ "komawm.cachix.org-1:7wdl1Turej+CDmCxfK7pOzKASNDzKDQjWMQUbEp5Csg=" ]`), or add them directly to `nix.settings`:
+  ```nix
+  nix.settings = {
+    extra-substituters = [ "https://komawm.cachix.org" ];
+    extra-trusted-public-keys = [ "komawm.cachix.org-1:7wdl1Turej+CDmCxfK7pOzKASNDzKDQjWMQUbEp5Csg=" ];
+  };
+  ```
 - **FreeBSD `15.1-RELEASE`**: Requires `seatd`, `libinput`, `libudev-devd`, `mesa-libs`, `libdisplay-info`, `libxkbcommon`, `wayland`, and `basu` / `consolekit2` for unprivileged VT seat access.
 - **OpenBSD `8+`**: Template provided in `komawm/packaging/openbsd/` (experimental; runtime verification pending).
 

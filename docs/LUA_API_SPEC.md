@@ -402,16 +402,18 @@ Following `Niri`'s `unmapped.rs -> mapped.rs` lifecycle, `koma.rule.window(spec)
 | ----- | ----- | ----- | ----- | 
 | `app_id` | `string` (Rust regex) | Initial + Dynamic | Matches Wayland `xdg_toplevel.app_id` or `xwayland-satellite` WM_CLASS. | 
 | `title` | `string` (Rust regex) | Initial + Dynamic | Matches current window title. | 
-| `tag` | `string` (Rust regex) | Initial + Dynamic | Matches user/agent runtime tags (`komactl win tag`) or `xdg-toplevel-tag-v1`. | 
+| `tag` | `string` (Rust regex) | Planned (rejected on load) | Reserved for user/agent tags; currently rejected explicitly by `koma.rule.window` validation (`v0.0.12`) instead of silently matching. | 
 | `workspace` | `string` | Initial + Dynamic | Workspace name (`"agent:office"`) or smart count selector (`"w[1]"` single tiled window). | 
 | `is_floating` | `boolean` | Dynamic | Matches current floating vs. tiled/deck state. | 
 | `is_focused` | `boolean` | Dynamic | True when holding active seat focus on its workspace. | 
-| `is_urgent` | `boolean` | Dynamic | True when marked urgent via [`xdg-activation-v1`](https://wayland.app/protocols/xdg-activation-v1). | 
+| `is_urgent` | `boolean` | Planned (rejected on load) | Reserved for future `xdg-activation-v1` urgency; currently rejected explicitly by `koma.rule.window` validation (`v0.0.12`). | 
 | `is_modal_dialog` | `boolean` | Initial + Dynamic | True when attached via `xdg-dialog-v1` modal hint or transient parent size hint. | 
 | `is_xwayland` | `boolean` | Initial + Dynamic | True for X11 windows bridged via [`xwayland-satellite`](https://github.com/Supreeeme/xwayland-satellite). | 
 | `is_screencast_target` | `boolean` | Dynamic | True while actively captured via [`ext-image-copy-capture-v1`](https://wayland.app/protocols/ext-image-copy-capture-v1) or PipeWire. | 
 | `is_agent_workspace` | `boolean` | Initial + Dynamic | True when the window resides on a workspace with `AgentExclusive` lease or headless mode. | 
-| `at_startup` | `boolean` | Initial only | True during the first `5.0 s` after compositor boot. | 
+| `at_startup` | `boolean` | Initial + Dynamic | True during the first `5.0 s` after compositor boot. | 
+
+`initial` accepts `open_on_output` (`"primary"` or output name), `open_on_workspace`, `open_mode` (`"tile"` | `"float"` | `"fullscreen"` | `"maximized"` | `"deck_top"` | `"stash_background"`), `open_focused`, `default_floating_pos = { x, y, anchor }`, plus `PresetColumnWidth` size fields `default_width` / `default_height` (aliases `width` / `height`), `min_width`, `min_height`, `max_width`, and `max_height` (`integer > 1` for fixed pixels, `0.0..=1.0` or `{ proportion = p }` for work-area fraction, `{ fixed = px }`). When `open_mode = "float"` is configured without setting both `default_width` and `default_height`, Koma leaves initial configure unconstrained (`size = nil`) and scales oversized or single-axis-constrained surfaces proportionally to preserve aspect ratio within the work area. Per-window `immediate = true` skips open/close animations, and floating windows remain visible and interactive above both `Fullscreen` and `Maximized` windows.
 
 #### Initial Configure vs. Dynamic Reactive Properties
 
@@ -765,6 +767,9 @@ end)
 -- require("macros.blender")
 
 -- 2. Session Environment & Autostart Daemons
+-- Relative paths (`./...`, `../...`, `scripts/...`) and `~` / `~/...` resolve across
+-- `koma.env`, `koma.act.spawn`, `ctx:spawn`, `koma.xwayland({ path = ... })`,
+-- jailed `require(...)` under `lua/`, and `koma.resolve_path(path)`.
 koma.env("XCURSOR_SIZE", "24")
 koma.env("QT_QPA_PLATFORM", "wayland;xcb")
 

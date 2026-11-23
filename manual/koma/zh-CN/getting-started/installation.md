@@ -58,6 +58,13 @@ sudo pacman -U koma-0.0.3-1-x86_64.pkg.tar.zst
   curl -fsSLO https://cdn.komawm.org/install/koma/koma.rb
   brew install --formula ./koma.rb
   ```
+- **NixOS / Flake 与二进制缓存（`komawm.cachix.org`）**：在你的 flake `inputs` 中引入 `github:komawm/koma` 并启用 `koma.nixosModules.koma`。仓库根 `flake.nix` 已声明 `nixConfig`（`extra-substituters = [ "https://komawm.cachix.org" ]` 与公钥 `komawm.cachix.org-1:7wdl1Turej+CDmCxfK7pOzKASNDzKDQjWMQUbEp5Csg=`），也可以直接写入 `nix.settings`：
+  ```nix
+  nix.settings = {
+    extra-substituters = [ "https://komawm.cachix.org" ];
+    extra-trusted-public-keys = [ "komawm.cachix.org-1:7wdl1Turej+CDmCxfK7pOzKASNDzKDQjWMQUbEp5Csg=" ];
+  };
+  ```
 - **FreeBSD `15.1-RELEASE`**：需要 `seatd`、`libinput`、`libudev-devd`、`mesa-libs`、`libdisplay-info`、`libxkbcommon`、`wayland`，以及 `basu` / `consolekit2` 以支持无特权 VT 座席访问。
 - **OpenBSD `8+`**：打包模板位于 `komawm/packaging/openbsd/`（目前仍为实验性模板，待运行时验证）。
 

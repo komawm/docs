@@ -86,7 +86,7 @@ koma.workspace({ name = "5", persistent = true })
 ## Screencopy & `xdg-desktop-portal`
 
 - **`zwlr_screencopy_manager_v1` (v3)**: Supports SHM and DMA-BUF capture (`grim`, `wayshot`, `slurp`). Emits a single `buffer` / `linux_dmabuf` event per frame and honors `block_out_from = "screencopy"` / `"all"` blackout masks plus `ext-session-lock-v1` fail-closed denial.
-- **`xdg-desktop-portal` (`koma.portal`)**: Routes `ScreenCast`, `Screenshot`, and `GlobalShortcuts` / `Inhibit` interfaces via `xdg-desktop-portal-wlr` / `xdg-desktop-portal-gtk` compatible portal configuration installed with Koma packages.
+- **Native `xdg-desktop-portal-koma` (`org.freedesktop.impl.portal.desktop.koma`, `koma.portal`)**: Implements `ScreenCast` (PipeWire `pw_stream` + `zwlr_screencopy_manager_v1`), `RemoteDesktop` (`zwlr_virtual_pointer_v1` + `zwp_virtual_keyboard_v1`), and `Session` alongside `koma-portals.conf` routing and `xdg-desktop-portal-gtk` file-picker/settings fallback for Wayland screen sharing and remote control (`RustDesk`, browsers, OBS).
 
 ## Input Method (IME) & Virtual Input
 

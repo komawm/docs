@@ -1,5 +1,5 @@
 surface = "koma"
-version = "0.0.1"
+version = "0.0.12"
 locales = ["en", "zh-CN", "ja"]
 
 [[sections]]

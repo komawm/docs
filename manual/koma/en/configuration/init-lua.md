@@ -1,6 +1,13 @@
 # Layouts, Appearance & init.lua
 
-Koma reads its configuration from `~/.config/koma/init.lua` (or `$XDG_CONFIG_HOME/koma/init.lua`, falling back to `/etc/xdg/koma/init.lua`). You can override the config path with `KOMA_CONFIG` or `koma -c <path>`, and split larger setups into modules under `~/.config/koma/lua/` loaded via `require(...)`. Running `komactl init` generates that modular tree for you (see [komactl & Workspace Overview](/docs/protocols-and-tools/cli-and-overview/)).
+Koma reads its configuration from `~/.config/koma/init.lua` (or `$XDG_CONFIG_HOME/koma/init.lua`, falling back to `/etc/xdg/koma/init.lua`). You can override the config path with `KOMA_CONFIG` or `koma -c <path>` (expanding `~` and resolving relative paths against the current working directory), and split larger setups into modules under `~/.config/koma/lua/` loaded via `require(...)`. Running `komactl init` generates that modular tree for you (see [komactl & Workspace Overview](/docs/protocols-and-tools/cli-and-overview/)).
+
+## Path Expansion (`~` & Config-Relative Paths)
+
+- **Tilde & Config-Directory Resolution**: Across `koma.act.spawn(...)`, `ctx:spawn(...)`, `koma.env(...)` (including colon-separated `PATH` entries), `koma.xwayland({ path = ... })`, and `koma.resolve_path(path)`, `~` / `~/...` expands against `$HOME` and relative paths (`./...`, `../...`, `scripts/...`) resolve relative to the directory containing `init.lua`.
+- **Shell `-c` Safety**: Command strings passed immediately after a shell `-c` flag (such as `{ "sh", "-c", "./run.sh" }`) are preserved verbatim for the child shell instead of being rewritten.
+- **Jailed `require(...)` Aliases**: Both standard dot paths (`require("input")`) and path-like forms (`require("./lua/input")`, `require("lua/input")`, `require("./input")`, or `~/.config/koma/lua/input`) resolve safely as long as the canonical target remains inside `<config_dir>/lua/`.
+- **`komactl doctor` Parity**: Offline diagnostics resolve `koma.env("PATH", ...)` entries and `~` / config-relative spawn executables identically to runtime.
 
 ![Koma scrolling workspace layout and Lua configuration](https://cdn.komawm.org/media/koma-scrolling.webp "Scrolling strip layout with multi-column focus and status bar.")
 
@@ -25,6 +32,7 @@ koma.dwindle({
     preserve_split = false,
     smart_split = false,
     default_split_ratio = 1.0,
+    size_limits_tiled = false, -- false = strict split_ratio; true = yield slack for client min_size
     inner_gap = 6,
     outer_gap = 10,
 })
@@ -123,7 +131,7 @@ The built-in defaults are expressed with the same action surface, including `kom
 
 `Mod + Shift + Slash` dispatches `koma.act.overlay.keybinds_toggle()`. Koma draws the overview itself, so it works on a bare session with no launcher installed. `Escape`, the same chord, or a click dismisses it; while it is open it owns the keyboard and pointer buttons, and it refuses to open in a locked or abandoned session (a config reload closes it).
 
-The panel is grouped by catalogue category and lists the effective map, so chords you overrode with `koma.bind` and defaults you removed with `koma.unbind` are already reflected. Its rows come from the same merge that backs `komactl keys`, so the overlay and the CLI cannot disagree; the CLI is also where each row's source (`builtin` or `config:<file>`) and Lua expression are printed. On a narrow output the panel wraps into columns, and the last column ends with an exact `+N more` count instead of dropping bindings silently.
+The panel is grouped by catalogue category and lists the effective map, so chords you overrode with `koma.bind` and defaults you removed with `koma.unbind` are already reflected. Its rows come from the same merge that backs `komactl keys`, so the overlay and the CLI cannot disagree; the CLI is also where each row's source (`builtin` or `config:<file>`) and Lua expression are printed. When bindings span multiple pages, use `Left`/`Right`, `PageUp`/`PageDown`, `Up`/`Down`, `H`/`J`/`K`/`L`, `Space`, `N`/`P`, or `BackSpace` to page through every effective binding.
 
 ### Hold-to-Repeat Binds
 

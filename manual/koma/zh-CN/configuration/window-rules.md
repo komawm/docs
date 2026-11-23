@@ -6,13 +6,14 @@ Koma 在 `~/.config/koma/init.lua` 中使用 `koma.rule.window({...})` 匹配 Wa
 
 | 字段 | 生效阶段 | 说明 |
 | :--- | :--- | :--- |
-| `matches` / `excludes` | 匹配 / 排除列表 | 支持 `app_id`、`title`、`tag`、`workspace`、`is_floating`、`is_focused`、`is_urgent`、`is_modal_dialog`、`is_xwayland`、`is_screencast_target`、`is_agent_workspace`、`at_startup` |
-| `initial` | 仅首次打开 | `open_on_output`、`open_on_workspace`、`open_mode`（`"tile"` \| `"float"` \| `"fullscreen"` \| `"maximized"` \| `"deck_top"` \| `"stash_background"`）、`open_focused`、`default_floating_pos = { x, y, anchor }` |
+| `matches` / `excludes` | 匹配 / 排除列表 | 支持 `app_id`、`title`、`workspace`、`is_floating`、`is_focused`、`is_modal_dialog`、`is_xwayland`、`is_screencast_target`、`is_agent_workspace`、`at_startup`（`tag` / `is_urgent` 为保留字段，加载时会显式拒绝） |
+| `initial` | 仅首次打开 | `open_on_output`、`open_on_workspace`、`open_mode`（`"tile"` \| `"float"` \| `"fullscreen"` \| `"maximized"` \| `"deck_top"` \| `"stash_background"`）、`open_focused`、`default_width` / `default_height`（别名 `width` / `height`）、`min_width` / `min_height`、`max_width` / `max_height`、`default_floating_pos = { x, y, anchor }` |
 | `opacity` | 运行时表面 | 窗口透明度覆盖（`0.0..=1.0`） |
 | `inactive_opacity` | 运行时表面 | 非聚焦状态透明度乘数（`0.0..=1.0`） |
 | `corner_radius` | 运行时表面 | 单窗口圆角半径（逻辑像素） |
 | `clip_to_geometry` | 运行时表面 | 按布局几何边界裁剪客户端纹理 |
-| `animation` | 运行时表面 | 单窗口开关动画预设（如 `"popin 88%"`、`"slide:top"`） |
+| `animation` | 运行时表面 | 单窗口开关动画预设（如 `"popin 88%"`、`"slide:top"`、`"instant"`） |
+| `immediate` | 打开 / 关闭 | 设为 `true` 时跳过该窗口的打开与关闭动画 |
 | `no_blur` / `no_shadow` | 运行时表面 | 禁用该窗口的背景模糊或阴影 |
 | `border_color` | 运行时表面 | 覆盖该窗口的聚焦边框色（`"#rrggbb"` / `"#rrggbbaa"`） |
 | `focusable` | 运行时输入 | 允许或禁止获取键盘焦点 |
@@ -22,7 +23,8 @@ Koma 在 `~/.config/koma/init.lua` 中使用 `koma.rule.window({...})` 匹配 Wa
 
 `default_floating_pos.anchor` 支持 `"top-left"`、`"top"`、`"top-right"`、`"left"`、`"center"`、`"right"`、`"bottom-left"`、`"bottom"` 与 `"bottom-right"`。窗口对应的边缘或中心会对齐到工作区内的目标锚点 `(anchor_origin + (x, y))`。
 
-`initial.open_mode = "fullscreen"` 与 `"maximized"` 是两种不同状态：全屏覆盖包含间隙的整个显示器（激活期间抑制 `Top`/`Overlay` 表面），最大化则填充排除区域之外再减去间隙的工作区，因此面板保持可见。两者互斥。
+- **启动尺寸与按比例浮动**：`default_width`、`default_height`（别名 `width`、`height`）、`min_*` 与 `max_*` 均支持逻辑像素数（`> 1` 或 `{ fixed = px }`）以及工作区比例（`0.0..=1.0` 或 `{ proportion = p }`，钳位至 `0.1..=1.0`）；在 `scrolling` 工作区中 `default_width` 同时决定初始列宽。当 `open_mode = "float"` 且未同时固定宽高时，Koma 会在首次 configure 时保持尺寸无约束（`size = nil`）让客户端按自身比例提交尺寸；若窗口超出工作区或仅指定单轴尺寸，则会整体等比缩小以保留原始宽高比。
+- **全屏、最大化与悬浮窗口层级**：`initial.open_mode = "fullscreen"` 覆盖包含间隙的整个显示器（激活期间抑制 `Top`/`Overlay` 表面，且不再拦截该屏幕指针点击），`"maximized"` 则填充排除区域之外再减去间隙的工作区，因此面板保持可见。两者互斥；且浮动窗口在 **全屏与最大化** 窗口之上均保持可见并可正常交互，平铺兄弟窗口则隐藏在底层。
 
 ### 常用配置示例（`~/.config/koma/init.lua`）
 
@@ -53,6 +55,39 @@ koma.rule.window({
     },
     pin_on_output = true,
     opacity = 0.96,
+})
+
+-- 文件管理器与文件选择器以固定尺寸居中浮动启动（无需手写外置脚本）
+koma.rule.window({
+    name = "file-managers-floating",
+    matches = {
+        { app_id = "^(org\\.gnome\\.Nautilus|thunar|Thunar|org\\.kde\\.dolphin|nemo|xdg-desktop-portal-gtk)$" },
+    },
+    initial = {
+        open_mode = "float",
+        default_width = 1100,
+        default_height = 720,
+        default_floating_pos = { x = 0, y = 0, anchor = "center" },
+    },
+})
+
+-- 截图查看/标注（satty）：保留截图原始宽高比居中浮动，超屏时等比缩小
+koma.rule.window({
+    name = "satty-natural-aspect",
+    matches = { { app_id = "^com\\.gabm\\.satty$" } },
+    initial = {
+        open_mode = "float",
+        default_floating_pos = { x = 0, y = 0, anchor = "center" },
+    },
+})
+
+-- 为对延迟敏感的游戏或工具关闭开关动画
+koma.rule.window({
+    name = "instant-game-window",
+    matches = { { app_id = "^osu!$" } },
+    immediate = true,
+    no_blur = true,
+    no_shadow = true,
 })
 
 -- 启动时自动将聊天软件分配到 3 号工作区且不抢占焦点

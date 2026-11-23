@@ -1,6 +1,13 @@
 # レイアウト・外観・init.lua
 
-Koma は `~/.config/koma/init.lua`（または `$XDG_CONFIG_HOME/koma/init.lua`、フォールバックは `/etc/xdg/koma/init.lua`）から設定を読み込みます。環境変数 `KOMA_CONFIG` または `koma -c <path>` で設定ファイルを切り替えられるほか、`~/.config/koma/lua/` 配下に分割したモジュールを `require(...)` で読み込めます。`komactl init` を実行すると、このモジュール構成の雛形を生成できます（詳細は [komactl とワークスペース概観](/ja/docs/protocols-and-tools/cli-and-overview/)）。
+Koma は `~/.config/koma/init.lua`（または `$XDG_CONFIG_HOME/koma/init.lua`、フォールバックは `/etc/xdg/koma/init.lua`）から設定を読み込みます。環境変数 `KOMA_CONFIG` または `koma -c <path>` で設定ファイルを切り替えられるほか（`~` 展開およびカレント作業ディレクトリ基準の相対パス解決に対応）、`~/.config/koma/lua/` 配下に分割したモジュールを `require(...)` で読み込めます。`komactl init` を実行すると、このモジュール構成の雛形を生成できます（詳細は [komactl とワークスペース概観](/ja/docs/protocols-and-tools/cli-and-overview/)）。
+
+## パス展開（`~` と設定ディレクトリ基準の相対パス）
+
+- **チルダ・相対パス解決**：`koma.act.spawn(...)`、`ctx:spawn(...)`、`koma.env(...)`（コロン区切りの `PATH` 要素を含む）、`koma.xwayland({ path = ... })`、`koma.resolve_path(path)` では、`~` / `~/...` を `$HOME` 基準で展開し、相対パス（`./...`、`../...`、`scripts/...`）を `init.lua` のある設定ディレクトリ基準で解決します。
+- **シェル `-c` コマンド列の保護**：`{ "sh", "-c", "./run.sh" }` のように `-c` フラグ直後に渡されるコマンド文字列は書き換えず、子シェルへそのまま渡します。
+- **サンドボックス内 `require(...)` エイリアス**：通常のドット表記（`require("input")`）に加え、パス形式（`require("./lua/input")`、`require("lua/input")`、`require("./input")`、`~/.config/koma/lua/input`）も使用できます。解決後の実体が `<config_dir>/lua/` 外へ出る場合は拒否されます。
+- **`komactl doctor` との整合**：オフライン診断でも `koma.env("PATH", ...)` と相対実行パスの解決を実行時と同じ規則で検証します。
 
 ![Koma 横スクロールレイアウトと Lua 設定のプレビュー](https://cdn.komawm.org/media/koma-scrolling.webp "Scrolling レイアウトのマルチカラム表示とステータスバーの例。")
 
@@ -25,6 +32,7 @@ koma.dwindle({
     preserve_split = false,
     smart_split = false,
     default_split_ratio = 1.0,
+    size_limits_tiled = false, -- false = 分割比を厳守, true = クライアント最小サイズへ余白を譲る
     inner_gap = 6,
     outer_gap = 10,
 })
@@ -123,7 +131,7 @@ koma.bind("Mod + Shift + E", koma.act.quit(), { desc = "Exit Koma" })
 
 `Mod + Shift + Slash` は `koma.act.overlay.keybinds_toggle()` を実行します。一覧は Koma 自身が描画するため、ランチャーを入れていない素のセッションでも動作します。`Escape`、同じキー、またはクリックで閉じます。開いている間はキーボードとポインタボタンをこのオーバーレイが占有し、ロック中・放棄済みのセッションでは開きません（設定リロードでも閉じます）。
 
-パネルはカタログのカテゴリごとにまとまり、実効キーマップを表示します。`koma.bind` で上書きしたキーや `koma.unbind` で削除した既定はすでに反映されています。行は `komactl keys` と同じマージ結果から生成されるため、オーバーレイと CLI が食い違うことはありません。各行のソース（`builtin` または `config:<file>`）と Lua 式は CLI 側で確認できます。狭い出力ではパネルが複数列に折り返し、最後の列はバインドを黙って落とす代わりに正確な `+N more` を表示します。
+パネルはカタログのカテゴリごとにまとまり、実効キーマップを表示します。`koma.bind` で上書きしたキーや `koma.unbind` で削除した既定はすでに反映されています。行は `komactl keys` と同じマージ結果から生成されるため、オーバーレイと CLI が食い違うことはありません。各行のソース（`builtin` または `config:<file>`）と Lua 式は CLI 側で確認できます。キー一覧が複数ページに渡る場合は、`Left`/`Right`・`PageUp`/`PageDown`・`Up`/`Down`・`H`/`J`/`K`/`L`・`Space`・`N`/`P`・`BackSpace` でページを切り替えられます。
 
 ### 長押しリピート
 

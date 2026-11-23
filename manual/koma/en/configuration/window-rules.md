@@ -6,13 +6,14 @@ Koma matches Wayland and XWayland windows with `koma.rule.window({...})` and `wl
 
 | Field | Scope | Meaning |
 | :--- | :--- | :--- |
-| `matches` / `excludes` | Match/exclude lists | Supports `app_id`, `title`, `tag`, `workspace`, `is_floating`, `is_focused`, `is_urgent`, `is_modal_dialog`, `is_xwayland`, `is_screencast_target`, `is_agent_workspace`, `at_startup` |
-| `initial` | Initial map only | `open_on_output`, `open_on_workspace`, `open_mode` (`"tile"` \| `"float"` \| `"fullscreen"` \| `"maximized"` \| `"deck_top"` \| `"stash_background"`), `open_focused`, `default_floating_pos = { x, y, anchor }` |
+| `matches` / `excludes` | Match/exclude lists | Supports `app_id`, `title`, `workspace`, `is_floating`, `is_focused`, `is_modal_dialog`, `is_xwayland`, `is_screencast_target`, `is_agent_workspace`, `at_startup` (`tag` / `is_urgent` are reserved and rejected on load) |
+| `initial` | Initial map only | `open_on_output`, `open_on_workspace`, `open_mode` (`"tile"` \| `"float"` \| `"fullscreen"` \| `"maximized"` \| `"deck_top"` \| `"stash_background"`), `open_focused`, `default_width` / `default_height` (aliases `width` / `height`), `min_width` / `min_height`, `max_width` / `max_height`, `default_floating_pos = { x, y, anchor }` |
 | `opacity` | Live surface | Surface opacity override (`0.0..=1.0`) |
 | `inactive_opacity` | Live surface | Opacity multiplier when unfocused (`0.0..=1.0`) |
 | `corner_radius` | Live surface | Per-window corner radius in logical pixels |
 | `clip_to_geometry` | Live surface | Clips client surface textures to layout bounds |
-| `animation` | Live surface | Per-window open/close animation preset (e.g. `"popin 88%"`, `"slide:top"`) |
+| `animation` | Live surface | Per-window open/close animation preset (e.g. `"popin 88%"`, `"slide:top"`, `"instant"`) |
+| `immediate` | Open / close | Skips open and close animations when `true` |
 | `no_blur` / `no_shadow` | Live surface | Disables background blur or drop shadow for matching windows |
 | `border_color` | Live surface | Active border color override (`"#rrggbb"` / `"#rrggbbaa"`) |
 | `focusable` | Live input | Allows or blocks keyboard focus |
@@ -22,7 +23,8 @@ Koma matches Wayland and XWayland windows with `koma.rule.window({...})` and `wl
 
 Supported `anchor` values for `default_floating_pos` are `"top-left"`, `"top"`, `"top-right"`, `"left"`, `"center"`, `"right"`, `"bottom-left"`, `"bottom"`, and `"bottom-right"`. The window's corresponding edge or center is aligned to the resolved anchor point `(anchor_origin + (x, y))` within the work area.
 
-`initial.open_mode = "fullscreen"` and `"maximized"` are distinct states: fullscreen covers the whole monitor including gaps (and suppresses `Top`/`Overlay` surfaces while active), while maximized fills the work area minus gaps and exclusive zones so panels stay visible. They are mutually exclusive.
+- **Launch Dimensions & Natural-Aspect Floating**: `default_width`, `default_height` (with aliases `width`, `height`), `min_*`, and `max_*` accept logical pixel counts (`> 1`, or `{ fixed = px }`) or work-area fractions (`0.0..=1.0`, or `{ proportion = p }`, clamped to `0.1..=1.0`); `default_width` also sets initial column width in `scrolling` workspaces. When `open_mode = "float"` is set without fixing both width and height, Koma sends an unconstrained initial configure (`size = nil`) so the client submits its own preferred dimensions, and proportionally scales down any oversized surface (or single-axis constraint) to fit the work area while preserving aspect ratio.
+- **Fullscreen, Maximize & Floating Stacking**: `initial.open_mode = "fullscreen"` covers the whole monitor including gaps (suppressing `Top`/`Overlay` surfaces so they cannot intercept pointer clicks while active), while `"maximized"` fills the work area minus gaps and exclusive zones so panels stay visible. They are mutually exclusive, and floating windows remain visible and interactive on top of **both** `Fullscreen` and `Maximized` windows while tiled siblings stay hidden.
 
 ### Practical Examples (`~/.config/koma/init.lua`)
 
@@ -53,6 +55,39 @@ koma.rule.window({
     },
     pin_on_output = true,
     opacity = 0.96,
+})
+
+-- Fixed-size centered file managers & portal choosers (no wrapper scripts needed)
+koma.rule.window({
+    name = "file-managers-floating",
+    matches = {
+        { app_id = "^(org\\.gnome\\.Nautilus|thunar|Thunar|org\\.kde\\.dolphin|nemo|xdg-desktop-portal-gtk)$" },
+    },
+    initial = {
+        open_mode = "float",
+        default_width = 1100,
+        default_height = 720,
+        default_floating_pos = { x = 0, y = 0, anchor = "center" },
+    },
+})
+
+-- Screenshot viewer (satty): preserve natural aspect ratio centered, scale proportionally if oversized
+koma.rule.window({
+    name = "satty-natural-aspect",
+    matches = { { app_id = "^com\\.gabm\\.satty$" } },
+    initial = {
+        open_mode = "float",
+        default_floating_pos = { x = 0, y = 0, anchor = "center" },
+    },
+})
+
+-- Skip open/close animations for latency-sensitive fullscreen/game clients
+koma.rule.window({
+    name = "instant-game-window",
+    matches = { { app_id = "^osu!$" } },
+    immediate = true,
+    no_blur = true,
+    no_shadow = true,
 })
 
 -- Route chat apps to workspace 3 at startup without stealing focus

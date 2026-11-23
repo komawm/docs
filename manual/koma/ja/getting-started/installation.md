@@ -58,6 +58,13 @@ sudo pacman -U koma-0.0.3-1-x86_64.pkg.tar.zst
   curl -fsSLO https://cdn.komawm.org/install/koma/koma.rb
   brew install --formula ./koma.rb
   ```
+- **NixOS / Flake とバイナリキャッシュ（`komawm.cachix.org`）**：`inputs` に `github:komawm/koma` を追加し、`koma.nixosModules.koma` を有効化します。`flake.nix` には `nixConfig`（`extra-substituters = [ "https://komawm.cachix.org" ]`、公開鍵 `komawm.cachix.org-1:7wdl1Turej+CDmCxfK7pOzKASNDzKDQjWMQUbEp5Csg=`）が含まれており、`nix.settings` に直接追加することもできます：
+  ```nix
+  nix.settings = {
+    extra-substituters = [ "https://komawm.cachix.org" ];
+    extra-trusted-public-keys = [ "komawm.cachix.org-1:7wdl1Turej+CDmCxfK7pOzKASNDzKDQjWMQUbEp5Csg=" ];
+  };
+  ```
 - **FreeBSD `15.1-RELEASE`**：`seatd`、`libinput`、`libudev-devd`、`mesa-libs`、`libdisplay-info`、`libxkbcommon`、`wayland`、および非特権 VT シートアクセス用の `basu` / `consolekit2` が必要です。
 - **OpenBSD `8+`**：`komawm/packaging/openbsd/` に実験的テンプレートを用意しています（ランタイム検証は未完了）。
 

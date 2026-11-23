@@ -50,7 +50,7 @@ CLI オプションはディスプレイ、シート、または DRM デバイ�
 | `Mod + BracketLeft` / `BracketRight` | `scrolling.consume_or_expel_window_left/right()` | 左／右の列へ統合または分離 |
 | `Mod + S` / `Mod + Shift + S` | `scratchpad.toggle()` / `move_window()` | スクラッチパッド切替／移動 |
 | `Mod + Tab` | `overview.toggle()` | `koma-overview` 空間ワークスペーススイッチャーを表示 |
-| `Mod + Shift + Slash` | `overlay.keybinds_toggle()` | コンポジタ自身が描画するキーバインド一覧。`Escape`、同じキー、クリックで閉じる |
+| `Mod + Shift + Slash` | `overlay.keybinds_toggle()` | コンポジタ自身が描画するページ切替可能なキーバインド一覧（`Left`/`Right`・`PageUp`/`PageDown`・`Up`/`Down`・`H`/`J`/`K`/`L`）。`Escape`、同じキー、クリックで閉じる |
 | `Mod + MouseLeft` / `MouseRight` | `window.drag_move()` / `drag_resize()` | ドラッグによる移動・リサイズ（修飾キーなしの枠線・角ドラッグでもリサイズ） |
 | `Mod + WheelScrollDown / Up` | `workspace.focus_next()` / `focus_prev()` | ホイールでワークスペース切替（`150 ms` クールダウン） |
 | `Mod + WheelScrollLeft / Right` | `deck.cycle_prev()` / `cycle_next()` | Deck/Stash スタック巡回（`150 ms` クールダウン） |
@@ -60,8 +60,9 @@ CLI オプションはディスプレイ、シート、または DRM デバイ�
 
 ## フルスクリーンと最大化（`Mod + F` / `Mod + M`）
 
-- **フルスクリーン（`Mod + F`、`koma.act.window.fullscreen_toggle()`）** はモニター全体を覆い、ギャップも含みます。有効な間は `Top` / `Overlay` レイヤー（ステータスバー、ランチャー）は合成されませんが、マップ状態は維持され、終了すると即座に再表示されます。ワークスペース上の他のウィンドウは非表示になります。フルスクリーン中のウィンドウ自身は枠線・フォーカスリング・シャドウを描画しません。最大化では隣接ウィンドウとバーが残るため、これらは維持されます。
+- **フルスクリーン（`Mod + F`、`koma.act.window.fullscreen_toggle()`）** はモニター全体を覆い、ギャップも含みます。有効な間、その出力上の `Top` / `Overlay` レイヤー（ステータスバー、ランチャー）は合成もポインタヒットテストも行われませんが、マップ状態は維持され、終了すると即座に再表示されます。ワークスペース上の他のタイルウィンドウは非表示になり、フルスクリーン中のウィンドウ自身は枠線・フォーカスリング・シャドウを描画しません。最大化では隣接ウィンドウとバーが残るため、これらは維持されます。
 - **最大化（`Mod + M`、`koma.act.window.maximize_toggle()`）** は排他ゾーンを除く作業領域からギャップを引いた範囲を埋めるため、バーは表示されたままです。
+- **フルスクリーン・最大化の上でのフロート表示**：フローティングウィンドウは **フルスクリーンおよび最大化** のどちらの上でも表示・操作可能なまま維持され、タイル兄弟ウィンドウのみ背後に隠れます。
 - 2 つの状態は相互排他で、一方に入ると他方は解除されます。`Mod + Shift + M` は Scrolling の `koma.act.scrolling.maximize_column()` であり、ウィンドウ最大化とは別の操作です。
 
 ## 枠線ドラッグによるリサイズ

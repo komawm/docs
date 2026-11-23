@@ -89,6 +89,7 @@ koma.rule.window({
 koma.rule.window({
     name = "video-player-clean",
     matches = { { app_id = "^mpv$" } },
+    immediate = true, -- 開閉アニメーションをスキップ（animation = "instant" でも同等）
     no_blur = true,
     no_shadow = true,
     inactive_opacity = 1.0,

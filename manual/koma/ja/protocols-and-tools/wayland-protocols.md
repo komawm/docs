@@ -85,7 +85,7 @@ koma.workspace({ name = "5", persistent = true })
 ## スクリーンコピーと `xdg-desktop-portal`
 
 - **`zwlr_screencopy_manager_v1` (v3)**：SHM / DMA-BUF キャプチャ（`grim`、`wayshot`、`slurp`）に対応し、1 フレームあたり単一の `buffer` / `linux_dmabuf` イベントを送出します。`block_out_from = "screencopy"` / `"all"` の黒塗りマスクおよび `ext-session-lock-v1` のフェイルクローズド遮断を遵守します。
-- **`xdg-desktop-portal`（`koma.portal`）**：パッケージ同梱の設定により `xdg-desktop-portal-wlr` / `xdg-desktop-portal-gtk` 経由で `ScreenCast`、`Screenshot`、`GlobalShortcuts` / `Inhibit` を仲介します。
+- **ネイティブ `xdg-desktop-portal-koma`（`org.freedesktop.impl.portal.desktop.koma`、`koma.portal`）**：`ScreenCast`（PipeWire `pw_stream` + `zwlr_screencopy_manager_v1`）、`RemoteDesktop`（`zwlr_virtual_pointer_v1` + `zwp_virtual_keyboard_v1`）、`Session` を直接実装し、`koma-portals.conf` と `xdg-desktop-portal-gtk` の組み合わせにより `RustDesk`・ブラウザ・OBS での画面共有とリモート操作に対応します。
 
 ## 日本語 IME と仮想入力スタック
 

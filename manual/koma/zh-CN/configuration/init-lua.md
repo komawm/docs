@@ -1,6 +1,13 @@
 # 布局、外观与 init.lua
 
-Koma 默认从 `~/.config/koma/init.lua`（或 `$XDG_CONFIG_HOME/koma/init.lua`，回退路径为 `/etc/xdg/koma/init.lua`）加载配置。可通过环境变量 `KOMA_CONFIG` 或启动参数 `koma -c <path>` 指定其他配置文件；较长的配置可拆分到 `~/.config/koma/lua/` 目录中并用 `require(...)` 引入。运行 `komactl init` 可直接生成这套模块化骨架（详见 [komactl 与工作区概览](/zh-CN/docs/protocols-and-tools/cli-and-overview/)）。
+Koma 默认从 `~/.config/koma/init.lua`（或 `$XDG_CONFIG_HOME/koma/init.lua`，回退路径为 `/etc/xdg/koma/init.lua`）加载配置。可通过环境变量 `KOMA_CONFIG` 或启动参数 `koma -c <path>` 指定其他配置文件（支持 `~` 展开与相对当前工作目录解析）；较长的配置可拆分到 `~/.config/koma/lua/` 目录中并用 `require(...)` 引入。运行 `komactl init` 可直接生成这套模块化骨架（详见 [komactl 与工作区概览](/zh-CN/docs/protocols-and-tools/cli-and-overview/)）。
+
+## 路径展开（`~` 与相对路径解析）
+
+- **`~` 与配置目录相对路径**：在 `koma.act.spawn(...)`、`ctx:spawn(...)`、`koma.env(...)`（包含以冒号分隔的 `PATH` 项）、`koma.xwayland({ path = ... })` 与 `koma.resolve_path(path)` 中，`~` / `~/...` 会按 `$HOME` 展开，相对路径（`./...`、`../...`、`scripts/...`）会自动基于 `init.lua` 所在配置目录解析。
+- **Shell `-c` 命令串安全保留**：在解释器 `-c` 参数后紧跟的命令字符串（例如 `{ "sh", "-c", "./run.sh" }`）会原样交给子 shell，不被改写。
+- **沙箱内 `require(...)` 路径别名**：除点分模块名（`require("input")`）外，也支持路径风格写法（如 `require("./lua/input")`、`require("lua/input")`、`require("./input")` 或 `~/.config/koma/lua/input`）；但规范化后的目标仍严格限制在 `<config_dir>/lua/` 目录内，越界路径会被拒绝。
+- **`komactl doctor` 诊断一致**：离线检查会按与运行时完全一致的规则展开 `koma.env("PATH", ...)` 与相对启动路径。
 
 ![Koma 横向滚动工作区布局与 Lua 配置预览](https://cdn.komawm.org/media/koma-scrolling.webp "Scrolling 连续横向滚动列布局与状态栏预览。")
 
@@ -25,6 +32,7 @@ koma.dwindle({
     preserve_split = false,
     smart_split = false,
     default_split_ratio = 1.0,
+    size_limits_tiled = false, -- false = 严格按比例分割；true = 为客户端 min_size 让渡余量
     inner_gap = 6,
     outer_gap = 10,
 })
@@ -123,7 +131,7 @@ koma.bind("Mod + Shift + E", koma.act.quit(), { desc = "Exit Koma" })
 
 `Mod + Shift + Slash` 会执行 `koma.act.overlay.keybinds_toggle()`。总览由合成器自身绘制，因此即使没有安装启动器，纯净会话中也能使用。按 `Escape`、再按同一组合键或单击即可关闭；浮层打开期间会独占键盘与鼠标按键，并且在会话锁定或放弃状态下拒绝打开（重载配置时也会关闭）。
 
-面板按目录分类分组，展示实际生效的键位表，因此用 `koma.bind` 覆盖的组合键、用 `koma.unbind` 删除的默认绑定都已反映在内。面板的行与 `komactl keys` 使用同一份合并结果，二者不会出现分歧；每一行的来源（`builtin` 或 `config:<file>`）与 Lua 表达式可在 CLI 中查看。输出较窄时面板会折成多列，最后一列以精确的 `+N more` 结尾，而不是静默丢弃绑定。
+面板按目录分类分组，展示实际生效的键位表，因此用 `koma.bind` 覆盖的组合键、用 `koma.unbind` 删除的默认绑定都已反映在内。面板的行与 `komactl keys` 使用同一份合并结果，二者不会出现分歧；每一行的来源（`builtin` 或 `config:<file>`）与 Lua 表达式可在 CLI 中查看。当绑定超出单页时，可使用 `Left`/`Right`、`PageUp`/`PageDown`、`Up`/`Down`、`H`/`J`/`K`/`L`、`Space`、`N`/`P` 或 `BackSpace` 翻页查看全部有效快捷键。
 
 ### 按住重复
 

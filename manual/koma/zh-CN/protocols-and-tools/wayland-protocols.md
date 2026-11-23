@@ -85,7 +85,7 @@ koma.workspace({ name = "5", persistent = true })
 ## 截屏与 `xdg-desktop-portal`
 
 - **`zwlr_screencopy_manager_v1` (v3)**：支持 SHM 与 DMA-BUF 零拷贝截屏（兼容 `grim`、`wayshot`、`slurp`），每帧仅发出单个 `buffer`/`linux_dmabuf` 事件，并严格执行 `block_out_from = "screencopy"`/`"all"` 黑屏掩码及 `ext-session-lock-v1` 拒截保护。
-- **`xdg-desktop-portal`（`koma.portal`）**：随安装包提供门户路由配置，配合 `xdg-desktop-portal-wlr` / `xdg-desktop-portal-gtk` 提供 `ScreenCast`、`Screenshot` 与 `GlobalShortcuts` / `Inhibit` 支持。
+- **原生 `xdg-desktop-portal-koma`（`org.freedesktop.impl.portal.desktop.koma`、`koma.portal`）**：实现 `ScreenCast`（PipeWire `pw_stream` + `zwlr_screencopy_manager_v1`）、`RemoteDesktop`（`zwlr_virtual_pointer_v1` + `zwp_virtual_keyboard_v1`）与 `Session` 接口，并随 `koma-portals.conf` 路由搭配 `xdg-desktop-portal-gtk`，为 Wayland 屏幕共享与远程桌面（`RustDesk`、浏览器、OBS）提供原生支持。
 
 ## 中文/日文输入法（IME）与虚拟输入栈
 
